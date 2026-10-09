@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -29,16 +30,16 @@ export default function LoginPage() {
       );
       return;
     }
-    router.replace("/sessions");
+    router.replace("/");
   }
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4 pt-6">
       <BackLink href="/" label="홈" />
       <div>
-        <h1 className="text-xl font-bold">운영자 로그인</h1>
+        <h1 className="text-xl font-bold">로그인</h1>
         <p className="text-sm text-muted-foreground">
-          시연을 등록하고 결과를 보는 운영자용이에요. 평가하는 선배는 로그인 없이 받은 링크로 들어오면 돼요.
+          그룹에 가입해 시연을 하고, 평가하고, 피드백을 받아요.
         </p>
       </div>
       <form onSubmit={handleLogin} className="space-y-3">
@@ -51,6 +52,9 @@ export default function LoginPage() {
           {busy ? "확인 중..." : "로그인"}
         </Button>
       </form>
+      <p className="text-center text-sm text-muted-foreground">
+        계정이 없나요? <Link href="/signup" className="underline">회원가입</Link>
+      </p>
     </main>
   );
 }

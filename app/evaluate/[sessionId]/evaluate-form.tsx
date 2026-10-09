@@ -37,6 +37,19 @@ export default function EvaluateForm() {
   const template = getTemplate(session?.rubric_type);
   const items = template.items;
   const scoredItems = scoredOf(items);
+  // 로그인한 사람이면 이름을 자동으로 채워요
+  useEffect(() => {
+    if (!operator) return;
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", operator.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.display_name) setName((n) => n || data.display_name);
+      });
+  }, [operator]);
+
   const done = scoredItems.filter((i) => i.id in answers.scores).length;
   const canSubmit = name.trim() !== "" && isComplete(items, answers) && !saving;
 

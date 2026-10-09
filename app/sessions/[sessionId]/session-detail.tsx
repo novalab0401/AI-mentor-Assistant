@@ -15,7 +15,7 @@ import {
 
 type Session = {
   session_no: number; mentor_name: string; major: string | null; session_date: string; rubric_type: string;
-  feedback_token: string; feedback_open: boolean;
+  feedback_token: string; feedback_open: boolean; group_id: string;
 };
 type Evaluation = {
   id: number; evaluator_name: string; item_id: string; score: number | null; memo: string | null;
@@ -37,7 +37,7 @@ export default function SessionDetail() {
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("session_no, mentor_name, major, session_date, rubric_type, feedback_token, feedback_open")
+      .select("session_no, mentor_name, major, session_date, rubric_type, feedback_token, feedback_open, group_id")
       .eq("id", sessionId)
       .single()
       .then(({ data }) => setSession(data ?? null));
@@ -157,7 +157,7 @@ export default function SessionDetail() {
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
-      <BackLink href="/sessions" label="수업 목록" />
+      <BackLink href={`/groups/${session.group_id}`} label="그룹" />
 
       <div>
         <p className="text-sm text-muted-foreground">
