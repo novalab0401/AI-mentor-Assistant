@@ -15,22 +15,27 @@ export default function OperatorGate({ children }: { children: React.ReactNode }
     if (user === null) router.replace("/login");
   }, [user, router]);
 
-  if (!user) return <main className="p-4">확인 중...</main>;
-
   async function logout() {
     await supabase.auth.signOut();
     router.replace("/login");
   }
 
+  // 화면 자체는 항상 그려 두고, 로그인 확인 전에는 숨겨 둬요.
+  // (데이터는 Supabase 보안 규칙이 막아서, 로그인 전엔 숨겨진 화면에도 아무것도 안 들어와요)
   return (
     <>
-      <div className="mx-auto flex max-w-md items-center justify-between px-4 pt-3 text-xs text-muted-foreground">
-        <span>운영자 · {user.email}</span>
-        <button onClick={logout} className="underline underline-offset-2">
-          로그아웃
-        </button>
+      {!user && <main className="p-4">확인 중...</main>}
+      <div hidden={!user}>
+        {user && (
+          <div className="mx-auto flex max-w-md items-center justify-between px-4 pt-3 text-xs text-muted-foreground">
+            <span>운영자 · {user.email}</span>
+            <button onClick={logout} className="underline underline-offset-2">
+              로그아웃
+            </button>
+          </div>
+        )}
+        {children}
       </div>
-      {children}
     </>
   );
 }
