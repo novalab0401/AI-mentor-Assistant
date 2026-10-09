@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import BackLink from "@/components/back-link";
 import TemplatePicker from "@/components/template-picker";
 import { supabase } from "@/lib/supabase";
 import { getTemplate } from "@/lib/rubric";
@@ -87,6 +88,7 @@ export default function SessionsPage() {
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
+      <BackLink href="/" label="홈" />
       <div className="flex items-center justify-between">
         <Link href="/" className="text-xl font-bold">수업(시연) 목록</Link>
         <Link href="/sessions/new" className="rounded-md border px-3 py-1.5 text-sm">

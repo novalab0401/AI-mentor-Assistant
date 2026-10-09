@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackLink from "@/components/back-link";
 import RubricForm from "@/components/rubric-form";
 import { supabase } from "@/lib/supabase";
 import { getTemplate, isComplete, scoredOf, toRows, type Answers } from "@/lib/rubric";
@@ -92,6 +93,7 @@ export default function EvaluateForm() {
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4 pb-24">
+      {operator && <BackLink href={`/sessions/${sessionId}`} label="결과 화면" />}
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm text-muted-foreground">시연 #{session.session_no}</p>

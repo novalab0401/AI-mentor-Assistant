@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackLink from "@/components/back-link";
 import TemplatePicker from "@/components/template-picker";
 import { supabase } from "@/lib/supabase";
 import { defaultTemplateId } from "@/lib/rubric";
@@ -40,6 +41,7 @@ export default function NewSessionPage() {
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
+      <BackLink href="/sessions" label="수업 목록" />
       <div>
         <h1 className="text-xl font-bold">평가받을 수업 등록</h1>
         <p className="text-sm text-muted-foreground">

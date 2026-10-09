@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import BackLink from "@/components/back-link";
 import RubricForm from "@/components/rubric-form";
 import { supabase } from "@/lib/supabase";
 import {
@@ -131,9 +132,7 @@ export default function SessionDetail() {
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
-      <Link href="/sessions" className="text-sm text-muted-foreground">
-        ← 시연 목록
-      </Link>
+      <BackLink href="/sessions" label="수업 목록" />
 
       <div>
         <p className="text-sm text-muted-foreground">

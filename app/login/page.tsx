@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import BackLink from "@/components/back-link";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -32,7 +33,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md space-y-4 p-4 pt-16">
+    <main className="mx-auto max-w-md space-y-4 p-4 pt-6">
+      <BackLink href="/" label="홈" />
       <div>
         <h1 className="text-xl font-bold">운영자 로그인</h1>
         <p className="text-sm text-muted-foreground">
