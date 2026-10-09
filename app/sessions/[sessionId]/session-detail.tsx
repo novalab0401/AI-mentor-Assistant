@@ -15,6 +15,7 @@ import {
 
 type Session = {
   session_no: number; mentor_name: string; major: string | null; session_date: string; rubric_type: string;
+  feedback_token: string; feedback_open: boolean;
 };
 type Evaluation = {
   id: number; evaluator_name: string; item_id: string; score: number | null; memo: string | null;
@@ -31,11 +32,12 @@ export default function SessionDetail() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedFeedback, setCopiedFeedback] = useState(false);
 
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("session_no, mentor_name, major, session_date, rubric_type")
+      .select("session_no, mentor_name, major, session_date, rubric_type, feedback_token, feedback_open")
       .eq("id", sessionId)
       .single()
       .then(({ data }) => setSession(data ?? null));
@@ -68,6 +70,29 @@ export default function SessionDetail() {
       .map((e) => e.score as number);
     if (s.length === 0) return { avg: "-", n: 0 };
     return { avg: (s.reduce((a, b) => a + b, 0) / s.length).toFixed(1), n: s.length };
+  }
+
+  // 멘토에게 결과 공개/비공개
+  async function toggleFeedback() {
+    if (!session) return;
+    const next = !session.feedback_open;
+    setBusy(true);
+    const { data, error } = await supabase
+      .from("sessions")
+      .update({ feedback_open: next })
+      .eq("id", sessionId)
+      .select("id");
+    setBusy(false);
+    if (error) return alert("변경 실패: " + error.message);
+    if ((data ?? []).length === 0) return alert("권한이 없어요. 운영자로 로그인했는지 확인해 주세요.");
+    setSession({ ...session, feedback_open: next });
+  }
+
+  function copyFeedbackLink() {
+    if (!session) return;
+    navigator.clipboard.writeText(`${window.location.origin}/feedback/${session.feedback_token}`);
+    setCopiedFeedback(true);
+    setTimeout(() => setCopiedFeedback(false), 1500);
   }
 
   function startEdit(name: string) {
@@ -161,6 +186,33 @@ export default function SessionDetail() {
           직접 평가하기
         </Link>
       </div>
+
+      {/* ── 멘토에게 결과 공유 ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{session.mentor_name} 님에게 결과 공유</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            {session.feedback_open
+              ? "공개 중이에요. 피드백 링크로 점수와 의견을 볼 수 있어요. 평가자 이름은 보이지 않아요."
+              : "비공개예요. 링크를 미리 보내도 공개하기 전에는 \"아직 공개 전\"으로 보여요."}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant={session.feedback_open ? "outline" : "default"} disabled={busy}
+              onClick={toggleFeedback}>
+              {session.feedback_open ? "비공개로 바꾸기" : "멘토에게 공개"}
+            </Button>
+            <Button variant="outline" onClick={copyFeedbackLink}>
+              {copiedFeedback ? "복사됨!" : "피드백 링크 복사"}
+            </Button>
+          </div>
+          <a href={`/feedback/${session.feedback_token}`} target="_blank"
+            className="block text-center text-xs text-muted-foreground underline underline-offset-2">
+            멘토가 보는 화면 미리 보기
+          </a>
+        </CardContent>
+      </Card>
 
       {/* ── 항목별 평균 ── */}
       <Card>
