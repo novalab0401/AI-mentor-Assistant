@@ -140,15 +140,33 @@ export default function GroupHome() {
 
       {/* ── 그룹 정보 ── */}
       {editing ? (
-        <div className="space-y-2">
-          <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
-          <Textarea placeholder="소개 (선택)" value={editing.description}
-            onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => setEditing(null)}>취소</Button>
-            <Button disabled={busy || editing.name.trim() === ""} onClick={saveGroup}>저장</Button>
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>그룹 설정</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">이름과 소개</p>
+              <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+              <Textarea placeholder="소개 (선택)" value={editing.description}
+                onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => setEditing(null)}>닫기</Button>
+                <Button disabled={busy || editing.name.trim() === ""} onClick={saveGroup}>저장</Button>
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-sm font-medium text-destructive">그룹 삭제</p>
+              <p className="text-xs text-muted-foreground">
+                모든 팀, 수업 기록, 평가가 함께 지워지고 되돌릴 수 없어요.
+              </p>
+              <Button variant="destructive" className="w-full" disabled={busy} onClick={deleteGroup}>
+                그룹 삭제
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -163,7 +181,7 @@ export default function GroupHome() {
           {isAdmin && (
             <Button size="sm" variant="outline"
               onClick={() => setEditing({ name: group.name, description: group.description ?? "" })}>
-              그룹 수정
+              그룹 설정
             </Button>
           )}
         </div>
@@ -283,11 +301,6 @@ export default function GroupHome() {
               <Button variant="outline" className="w-full" disabled={busy} onClick={() => cancelOrLeave(true)}>
                 그룹 나가기
               </Button>
-              {isAdmin && (
-                <Button variant="destructive" className="w-full" disabled={busy} onClick={deleteGroup}>
-                  그룹 삭제
-                </Button>
-              )}
             </section>
           )}
         </>
