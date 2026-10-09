@@ -128,7 +128,7 @@ export default function SessionDetail() {
           {session.mentor_name}
           {session.major && <span className="font-normal"> · {session.major}</span>}
         </h1>
-        <p className="text-sm text-muted-foreground">평가받는 멘토</p>
+        <p className="text-sm text-muted-foreground">발표 멘토 (평가받는 사람)</p>
       </div>
 
       <Link href={`/evaluate/${sessionId}`}
