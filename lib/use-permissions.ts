@@ -21,6 +21,7 @@ export function usePermissions(enabled: boolean) {
   return perm;
 }
 
+// 그룹은 Nova Lab 관리자가 만들어서 그룹장에게 넘겨줘요
 export function canCreateGroup(p: Permissions | null) {
-  return !!p && (p.is_platform_admin || p.group_quota > p.groups_created);
+  return !!p && p.is_platform_admin;
 }

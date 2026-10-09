@@ -78,23 +78,16 @@ export default function SessionList({
   async function remove(s: Row) {
     const msg =
       s.evaluations.length > 0
-        ? `시연 #${s.session_no} (${s.mentor_name})과 그 평가 ${new Set(s.evaluations.map((e) => e.evaluator_name)).size}명분을 모두 삭제할까요? 되돌릴 수 없어요.`
-        : `시연 #${s.session_no} (${s.mentor_name})을 삭제할까요?`;
+        ? `시연 #${s.session_no} (${s.mentor_name})과 그 평가 ${new Set(s.evaluations.map((e) => e.evaluator_name)).size}명분을 목록에서 삭제할까요?`
+        : `시연 #${s.session_no} (${s.mentor_name})을 목록에서 삭제할까요?`;
     if (!confirm(msg)) return;
 
     setBusy(true);
-    // 점수가 시연을 가리키고 있어서(외래 키), 점수를 먼저 지우고 시연을 지워요
-    const ev = await supabase.from("evaluations").delete().eq("session_id", s.id);
-    if (ev.error) {
-      setBusy(false);
-      return alert("평가 삭제 실패: " + ev.error.message);
-    }
-    const { data, error } = await supabase.from("sessions").delete().eq("id", s.id).select("id");
+    // 보관 삭제: 화면에서는 사라지고, 기록은 Nova Lab DB에 남아요
+    const { error } = await supabase.rpc("archive_session", { p_session: s.id });
     setBusy(false);
 
-    if (error) return alert("시연 삭제 실패: " + error.message);
-    if ((data ?? []).length === 0)
-      return alert("삭제 권한이 없어요. Supabase에서 시연 삭제 허용 SQL을 실행했는지 확인해 주세요.");
+    if (error) return alert("삭제 실패: " + error.message);
     setReloadKey((k) => k + 1);
   }
 

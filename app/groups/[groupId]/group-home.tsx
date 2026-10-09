@@ -12,6 +12,7 @@ import TeamTab, { type Team } from "@/components/team-tab";
 import { supabase } from "@/lib/supabase";
 import { useOperator } from "@/lib/use-operator";
 import { roleLabels, roles, type Role } from "@/lib/roles";
+import { usePermissions } from "@/lib/use-permissions";
 
 type Group = { id: string; name: string; description: string | null };
 type Member = {
@@ -26,6 +27,7 @@ export default function GroupHome() {
   const { groupId } = useParams<{ groupId: string }>();
   const router = useRouter();
   const user = useOperator();
+  const perm = usePermissions(!!user);
 
   const [group, setGroup] = useState<Group | null | undefined>(undefined);
   const [members, setMembers] = useState<Member[]>([]);
@@ -158,12 +160,20 @@ export default function GroupHome() {
 
             <div className="space-y-2 border-t pt-4">
               <p className="text-sm font-medium text-destructive">그룹 삭제</p>
-              <p className="text-xs text-muted-foreground">
-                모든 팀, 수업 기록, 평가가 함께 지워지고 되돌릴 수 없어요.
-              </p>
-              <Button variant="destructive" className="w-full" disabled={busy} onClick={deleteGroup}>
-                그룹 삭제
-              </Button>
+              {perm?.is_platform_admin ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Nova Lab 관리자 전용. 모든 팀, 수업 기록, 평가가 함께 지워지고 되돌릴 수 없어요.
+                  </p>
+                  <Button variant="destructive" className="w-full" disabled={busy} onClick={deleteGroup}>
+                    그룹 삭제
+                  </Button>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  그룹 삭제는 Nova Lab에 요청해 주세요.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -178,7 +188,7 @@ export default function GroupHome() {
               </p>
             )}
           </div>
-          {isAdmin && (
+          {(isAdmin || perm?.is_platform_admin) && (
             <Button size="sm" variant="outline"
               onClick={() => setEditing({ name: group.name, description: group.description ?? "" })}>
               그룹 설정

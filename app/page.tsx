@@ -91,7 +91,7 @@ export default function Home() {
 
       {perm?.is_platform_admin && (
         <Link href="/admin" className="block rounded-md border border-dashed py-2 text-center text-sm">
-          Nova Lab 관리자: 그룹 만들기 권한 관리
+          Nova Lab 관리자: 전체 그룹 현황
         </Link>
       )}
 

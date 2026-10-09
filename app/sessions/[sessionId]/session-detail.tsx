@@ -120,10 +120,14 @@ export default function SessionDetail() {
           ? supabase.from("evaluations").update(values).eq("id", row.id).select("id")
           : supabase.from("evaluations").insert({ ...values, session_id: sessionId }).select("id");
       }),
-      // 지운 서술형 의견은 삭제
+      // 지운 서술형 의견은 내용만 비우기 (줄은 남겨요)
       ...existing
-        .filter((r) => !wanted.some((w) => w.item_id === r.item_id))
-        .map((r) => supabase.from("evaluations").delete().eq("id", r.id).select("id")),
+        .filter((r) => !wanted.some((w) => w.item_id === r.item_id) && r.memo !== null)
+        .map((r) =>
+          supabase.from("evaluations")
+            .update({ memo: null, evaluator_name: draft.name.trim() })
+            .eq("id", r.id).select("id")
+        ),
     ];
 
     const results = await Promise.all(ops);
@@ -140,18 +144,17 @@ export default function SessionDetail() {
   }
 
   async function remove(name: string) {
-    if (!confirm(`${name} 님의 평가를 삭제할까요? 되돌릴 수 없어요.`)) return;
+    if (!confirm(`${name} 님의 평가를 삭제할까요?`)) return;
     setBusy(true);
-    const { data, error } = await supabase
-      .from("evaluations")
-      .delete()
-      .in("id", rowsOf(name).map((r) => r.id))
-      .select("id");
+    // 보관 삭제: 결과에서는 빠지고, 기록은 Nova Lab DB에 남아요
+    const { data, error } = await supabase.rpc("archive_evaluator", {
+      p_session: sessionId,
+      p_evaluator: name,
+    });
     setBusy(false);
 
     if (error) return alert("삭제 실패: " + error.message);
-    if ((data ?? []).length === 0)
-      return alert("삭제 권한이 없어요. 운영자로 로그인했는지 확인해 주세요.");
+    if (!data) return alert("삭제된 평가가 없어요. 권한을 확인해 주세요.");
     setReloadKey((k) => k + 1);
   }
 
