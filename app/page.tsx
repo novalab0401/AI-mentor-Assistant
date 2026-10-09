@@ -27,10 +27,10 @@ export default function Home() {
         <>
           <Link href="/sessions"
             className="block rounded-md bg-primary py-3 text-center font-medium text-primary-foreground">
-            시연 목록 보기
+            수업(시연) 목록 보기
           </Link>
           <Link href="/sessions/new" className="block rounded-md border py-3 text-center font-medium">
-            평가받을 시연 등록
+            평가받을 수업 등록
           </Link>
         </>
       )}

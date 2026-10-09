@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input";
 import RubricForm from "@/components/rubric-form";
 import { supabase } from "@/lib/supabase";
 import {
-  groups, isComplete, rubric, scoredItems, textItems, toRows, type Answers,
+  getTemplate, groupsOf, isComplete, scoredOf, textOf, toRows, type Answers,
 } from "@/lib/rubric";
 
-type Session = { session_no: number; mentor_name: string; major: string | null; session_date: string };
+type Session = {
+  session_no: number; mentor_name: string; major: string | null; session_date: string; rubric_type: string;
+};
 type Evaluation = {
   id: number; evaluator_name: string; item_id: string; score: number | null; memo: string | null;
 };
@@ -32,7 +34,7 @@ export default function SessionDetail() {
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("session_no, mentor_name, major, session_date")
+      .select("session_no, mentor_name, major, session_date, rubric_type")
       .eq("id", sessionId)
       .single()
       .then(({ data }) => setSession(data ?? null));
@@ -50,6 +52,11 @@ export default function SessionDetail() {
   if (session === undefined) return <main className="p-4">불러오는 중...</main>;
   if (session === null) return <main className="p-4">존재하지 않는 시연이에요.</main>;
 
+  const template = getTemplate(session.rubric_type);
+  const items = template.items;
+  const scoredItems = scoredOf(items);
+  const textItems = textOf(items);
+  const groups = groupsOf(items);
   const evaluators = [...new Set(evals.map((e) => e.evaluator_name))];
   const rowsOf = (name: string) => evals.filter((e) => e.evaluator_name === name);
 
@@ -65,7 +72,7 @@ export default function SessionDetail() {
   function startEdit(name: string) {
     const answers: Answers = { scores: {}, memos: {} };
     for (const r of rowsOf(name)) {
-      const item = rubric.find((i) => i.id === r.item_id);
+      const item = items.find((i) => i.id === r.item_id);
       if (item?.kind === "score") answers.scores[r.item_id] = r.score;
       if (r.memo) answers.memos[r.item_id] = r.memo;
     }
@@ -76,7 +83,7 @@ export default function SessionDetail() {
     if (!draft || draft.name.trim() === "") return;
     setBusy(true);
     const existing = rowsOf(draft.originalName);
-    const wanted = toRows(draft.answers);
+    const wanted = toRows(items, draft.answers);
 
     const ops = [
       // 있던 항목은 수정, 새로 생긴 항목은 추가
@@ -136,7 +143,7 @@ export default function SessionDetail() {
           {session.mentor_name}
           {session.major && <span className="font-normal"> · {session.major}</span>}
         </h1>
-        <p className="text-sm text-muted-foreground">발표 멘토 (평가받는 사람)</p>
+        <p className="text-sm text-muted-foreground">발표 멘토 (평가받는 사람) · 평가지: {template.name}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -207,6 +214,7 @@ export default function SessionDetail() {
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               />
               <RubricForm
+                items={items}
                 value={draft.answers}
                 onChange={(answers) => setDraft({ ...draft, answers })}
               />
@@ -216,9 +224,9 @@ export default function SessionDetail() {
                 </Button>
                 <Button
                   onClick={saveEdit}
-                  disabled={busy || draft.name.trim() === "" || !isComplete(draft.answers)}
+                  disabled={busy || draft.name.trim() === "" || !isComplete(items, draft.answers)}
                 >
-                  {busy ? "저장 중..." : isComplete(draft.answers) ? "저장" : "빈 항목이 있어요"}
+                  {busy ? "저장 중..." : isComplete(items, draft.answers) ? "저장" : "빈 항목이 있어요"}
                 </Button>
               </div>
             </CardContent>

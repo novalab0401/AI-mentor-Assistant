@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import RubricForm from "@/components/rubric-form";
 import { supabase } from "@/lib/supabase";
-import { isComplete, scoredItems, toRows, type Answers } from "@/lib/rubric";
+import { getTemplate, isComplete, scoredOf, toRows, type Answers } from "@/lib/rubric";
 import { useOperator } from "@/lib/use-operator";
 
-type Session = { session_no: number; mentor_name: string; major: string | null };
+type Session = { session_no: number; mentor_name: string; major: string | null; rubric_type: string };
 
 const empty: Answers = { scores: {}, memos: {} };
 
@@ -33,8 +33,11 @@ export default function EvaluateForm() {
       .then(({ data }) => setSession((data as Session[] | null)?.[0] ?? null));
   }, [sessionId]);
 
+  const template = getTemplate(session?.rubric_type);
+  const items = template.items;
+  const scoredItems = scoredOf(items);
   const done = scoredItems.filter((i) => i.id in answers.scores).length;
-  const canSubmit = name.trim() !== "" && isComplete(answers) && !saving;
+  const canSubmit = name.trim() !== "" && isComplete(items, answers) && !saving;
 
   function copyLink() {
     navigator.clipboard.writeText(window.location.href);
@@ -44,7 +47,7 @@ export default function EvaluateForm() {
 
   async function handleSubmit() {
     setSaving(true);
-    const rows = toRows(answers).map((r) => ({
+    const rows = toRows(items, answers).map((r) => ({
       ...r,
       session_id: sessionId,
       evaluator_name: name.trim(),
@@ -96,7 +99,7 @@ export default function EvaluateForm() {
             {session.mentor_name}
             {session.major && <span className="font-normal"> · {session.major}</span>}
           </h1>
-          <p className="text-sm text-muted-foreground">위 멘토의 시연을 평가해요</p>
+          <p className="text-sm text-muted-foreground">평가지: {template.name}</p>
         </div>
         <Button variant="outline" size="sm" onClick={copyLink}>
           {copied ? "복사됨!" : "링크 복사"}
@@ -106,7 +109,7 @@ export default function EvaluateForm() {
       <Input placeholder="내 이름 (평가하는 사람)" value={name}
         onChange={(e) => setName(e.target.value)} />
 
-      <RubricForm value={answers} onChange={setAnswers} />
+      <RubricForm items={items} value={answers} onChange={setAnswers} />
 
       {/* 화면 아래에 붙어 있는 제출 바: 길게 스크롤해도 진행 상황이 보여요 */}
       <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 p-3 backdrop-blur">

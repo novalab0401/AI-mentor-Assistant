@@ -5,7 +5,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import TemplatePicker from "@/components/template-picker";
 import { supabase } from "@/lib/supabase";
+import { getTemplate } from "@/lib/rubric";
 
 type Row = {
   id: string;
@@ -13,11 +15,12 @@ type Row = {
   mentor_name: string;
   major: string | null;
   session_date: string;
+  rubric_type: string;
   evaluations: { evaluator_name: string }[];
 };
 
 // 수정 중인 시연의 임시 값
-type Draft = { id: string; mentorName: string; major: string };
+type Draft = { id: string; mentorName: string; major: string; rubricType: string; locked: boolean };
 
 export default function SessionsPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -28,7 +31,7 @@ export default function SessionsPage() {
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("id, session_no, mentor_name, major, session_date, evaluations(evaluator_name)")
+      .select("id, session_no, mentor_name, major, session_date, rubric_type, evaluations(evaluator_name)")
       .order("session_no", { ascending: false })
       .then(({ data, error }) => {
         if (error) alert("불러오기 실패: " + error.message);
@@ -41,7 +44,11 @@ export default function SessionsPage() {
     setBusy(true);
     const { data, error } = await supabase
       .from("sessions")
-      .update({ mentor_name: draft.mentorName.trim(), major: draft.major.trim() || null })
+      .update({
+        mentor_name: draft.mentorName.trim(),
+        major: draft.major.trim() || null,
+        rubric_type: draft.rubricType,
+      })
       .eq("id", draft.id)
       .select("id");
     setBusy(false);
@@ -81,9 +88,9 @@ export default function SessionsPage() {
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
       <div className="flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold">시연 목록</Link>
+        <Link href="/" className="text-xl font-bold">수업(시연) 목록</Link>
         <Link href="/sessions/new" className="rounded-md border px-3 py-1.5 text-sm">
-          + 시연 등록
+          + 수업 등록
         </Link>
       </div>
 
@@ -102,10 +109,20 @@ export default function SessionsPage() {
                 <CardDescription>시연 #{s.session_no} 정보 수정</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Input placeholder="발표하는 멘토 이름" value={draft.mentorName}
+                <Input placeholder="수업(시연)하는 사람 이름" value={draft.mentorName}
                   onChange={(e) => setDraft({ ...draft, mentorName: e.target.value })} />
-                <Input placeholder="소개할 전공 (선택)" value={draft.major}
+                <Input placeholder="전공 또는 수업 주제 (선택)" value={draft.major}
                   onChange={(e) => setDraft({ ...draft, major: e.target.value })} />
+                <TemplatePicker
+                  value={draft.rubricType}
+                  disabled={draft.locked}
+                  onChange={(id) => setDraft({ ...draft, rubricType: id })}
+                />
+                {draft.locked && (
+                  <p className="text-xs text-muted-foreground">
+                    이미 평가가 있어서 평가지는 바꿀 수 없어요. (항목이 달라져서 점수가 맞지 않게 돼요)
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="outline" disabled={busy} onClick={() => setDraft(null)}>취소</Button>
                   <Button disabled={busy || draft.mentorName.trim() === ""} onClick={saveEdit}>
@@ -124,11 +141,13 @@ export default function SessionsPage() {
               <CardDescription>시연 #{s.session_no} · {s.session_date}</CardDescription>
               <Link href={`/sessions/${s.id}`} className="hover:underline">
                 <CardTitle>
-                  발표 멘토: {s.mentor_name}
+                  {s.mentor_name}
                   {s.major && <span className="font-normal"> · {s.major}</span>}
                 </CardTitle>
               </Link>
-              <CardDescription>평가한 선배 {evaluatorCount}명</CardDescription>
+              <CardDescription>
+                {getTemplate(s.rubric_type).name} · 평가자 {evaluatorCount}명
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-2">
               <Link href={`/sessions/${s.id}`}
@@ -136,7 +155,15 @@ export default function SessionsPage() {
                 결과 보기
               </Link>
               <Button variant="outline" disabled={busy || draft !== null}
-                onClick={() => setDraft({ id: s.id, mentorName: s.mentor_name, major: s.major ?? "" })}>
+                onClick={() =>
+                  setDraft({
+                    id: s.id,
+                    mentorName: s.mentor_name,
+                    major: s.major ?? "",
+                    rubricType: s.rubric_type,
+                    locked: s.evaluations.length > 0,
+                  })
+                }>
                 수정
               </Button>
               <Button variant="destructive" disabled={busy || draft !== null} onClick={() => remove(s)}>

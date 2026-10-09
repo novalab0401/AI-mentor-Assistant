@@ -5,13 +5,15 @@ import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { groups, rubric, type Answers } from "@/lib/rubric";
+import { groupsOf, type Answers, type RubricItem } from "@/lib/rubric";
 
 // 평가 화면과 "평가 수정" 화면이 함께 쓰는 평가지
 export default function RubricForm({
+  items,
   value,
   onChange,
 }: {
+  items: RubricItem[];
   value: Answers;
   onChange: (next: Answers) => void;
 }) {
@@ -22,11 +24,11 @@ export default function RubricForm({
 
   return (
     <div className="space-y-6">
-      {groups.map((group) => (
+      {groupsOf(items).map((group) => (
         <section key={group} className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground">{group}</h2>
 
-          {rubric
+          {items
             .filter((item) => item.group === group)
             .map((item) => {
               if (item.kind === "text") {
