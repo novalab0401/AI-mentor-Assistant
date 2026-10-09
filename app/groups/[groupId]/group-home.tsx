@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import BackLink from "@/components/back-link";
 import SessionList from "@/components/session-list";
+import TeamTab, { type Team } from "@/components/team-tab";
 import { supabase } from "@/lib/supabase";
 import { useOperator } from "@/lib/use-operator";
 import { roleLabels, roles, type Role } from "@/lib/roles";
@@ -31,7 +32,8 @@ export default function GroupHome() {
   const [me, setMe] = useState<Member | null | undefined>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"sessions" | "members">("sessions");
+  const [tab, setTab] = useState<"sessions" | "teams" | "members">("sessions");
+  const [teams, setTeams] = useState<Team[]>([]);
   const [editing, setEditing] = useState<{ name: string; description: string } | null>(null);
 
   useEffect(() => {
@@ -54,6 +56,13 @@ export default function GroupHome() {
         setMembers(list);
         setMe(list.find((m) => m.user_id === user.id) ?? null);
       });
+
+    supabase
+      .from("teams")
+      .select("id, name, description, team_members(user_id, is_leader, status, profiles(display_name))")
+      .eq("group_id", groupId)
+      .order("created_at")
+      .then(({ data }) => setTeams((data as unknown as Team[]) ?? []));
   }, [groupId, user, reloadKey]);
 
   const reload = () => setReloadKey((k) => k + 1);
@@ -120,6 +129,10 @@ export default function GroupHome() {
   const isAdmin = isActive && me?.role === "admin";
   const active = members.filter((m) => m.status === "active");
   const pending = members.filter((m) => m.status === "pending");
+  // 내가 팀장인 팀 (그 팀의 수업은 내가 등록·관리할 수 있어요)
+  const leaderTeamIds = teams
+    .filter((t) => t.team_members.some((m) => m.user_id === user?.id && m.status === "active" && m.is_leader))
+    .map((t) => t.id);
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
@@ -185,16 +198,30 @@ export default function GroupHome() {
             </button>
           )}
 
-          <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm">
-            {(["sessions", "members"] as const).map((t) => (
+          <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1 text-sm">
+            {(["sessions", "teams", "members"] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)}
                 className={`rounded-md py-1.5 ${tab === t ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}>
-                {t === "sessions" ? "수업(시연)" : `멤버 ${active.length}`}
+                {t === "sessions" ? "수업(시연)" : t === "teams" ? `팀 ${teams.length}` : `멤버 ${active.length}`}
               </button>
             ))}
           </div>
 
-          {tab === "sessions" && <SessionList groupId={groupId} isAdmin={isAdmin} />}
+          {tab === "sessions" && (
+            <SessionList groupId={groupId} isAdmin={isAdmin} leaderTeamIds={leaderTeamIds}
+              teams={teams.map((t) => ({ id: t.id, name: t.name }))} />
+          )}
+
+          {tab === "teams" && (
+            <TeamTab
+              groupId={groupId}
+              teams={teams}
+              people={active.map((m) => ({ user_id: m.user_id, name: m.profiles?.display_name ?? "(이름 없음)" }))}
+              userId={user!.id}
+              isAdmin={isAdmin}
+              onChange={reload}
+            />
+          )}
 
           {tab === "members" && (
             <section className="space-y-3">

@@ -16,14 +16,27 @@ type Row = {
   major: string | null;
   session_date: string;
   rubric_type: string;
+  team_id: string | null;
+  teams: { name: string } | null;
   evaluations: { evaluator_name: string }[];
 };
+
+export type TeamOption = { id: string; name: string };
 
 // 수정 중인 시연의 임시 값
 type Draft = { id: string; mentorName: string; major: string; rubricType: string; locked: boolean };
 
-// 그룹 안의 수업(시연) 목록. 운영진만 수정·삭제·결과 보기가 가능해요.
-export default function SessionList({ groupId, isAdmin }: { groupId: string; isAdmin: boolean }) {
+// 그룹 안의 수업(시연) 목록.
+// 목록은 그룹 멤버 모두에게 보이고, 결과·수정·삭제는 그룹 운영진과 그 팀의 팀장만 할 수 있어요.
+export default function SessionList({
+  groupId, isAdmin, leaderTeamIds, teams,
+}: {
+  groupId: string;
+  isAdmin: boolean;
+  leaderTeamIds: string[];
+  teams: TeamOption[];
+}) {
+  const [teamFilter, setTeamFilter] = useState<string | "all">("all");
   const [rows, setRows] = useState<Row[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -32,12 +45,12 @@ export default function SessionList({ groupId, isAdmin }: { groupId: string; isA
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("id, session_no, mentor_name, major, session_date, rubric_type, evaluations(evaluator_name)")
+      .select("id, session_no, mentor_name, major, session_date, rubric_type, team_id, teams(name), evaluations(evaluator_name)")
       .eq("group_id", groupId)
       .order("session_no", { ascending: false })
       .then(({ data, error }) => {
         if (error) alert("불러오기 실패: " + error.message);
-        setRows(data ?? []);
+        setRows((data as unknown as Row[]) ?? []);
       });
   }, [groupId, reloadKey]);
 
@@ -91,7 +104,7 @@ export default function SessionList({ groupId, isAdmin }: { groupId: string; isA
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-muted-foreground">수업(시연)</h2>
-        {isAdmin && (
+        {(isAdmin || leaderTeamIds.length > 0) && (
           <Link href={`/groups/${groupId}/sessions/new`} className="rounded-md border px-3 py-1.5 text-sm">
             + 수업 등록
           </Link>
@@ -102,8 +115,22 @@ export default function SessionList({ groupId, isAdmin }: { groupId: string; isA
         <p className="text-sm text-muted-foreground">아직 등록된 수업(시연)이 없어요.</p>
       )}
 
-      {rows.map((s) => {
+      {teams.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {[{ id: "all", name: "전체" }, ...teams].map((t) => (
+            <button key={t.id} onClick={() => setTeamFilter(t.id)}
+              className={`rounded-full border px-3 py-1 text-xs ${
+                teamFilter === t.id ? "border-primary bg-primary/10 font-medium" : "text-muted-foreground"
+              }`}>
+              {t.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {rows.filter((s) => teamFilter === "all" || s.team_id === teamFilter).map((s) => {
         const evaluatorCount = new Set(s.evaluations.map((e) => e.evaluator_name)).size;
+        const canManage = isAdmin || (s.team_id !== null && leaderTeamIds.includes(s.team_id));
 
         if (draft?.id === s.id) {
           // ── 수정 모드 ──
@@ -142,17 +169,20 @@ export default function SessionList({ groupId, isAdmin }: { groupId: string; isA
         return (
           <Card key={s.id}>
             <CardHeader>
-              <CardDescription>시연 #{s.session_no} · {s.session_date}</CardDescription>
+              <CardDescription>
+                시연 #{s.session_no} · {s.session_date}
+                {s.teams && ` · ${s.teams.name}`}
+              </CardDescription>
               <CardTitle>
                 {s.mentor_name}
                 {s.major && <span className="font-normal"> · {s.major}</span>}
               </CardTitle>
               <CardDescription>
                 {getTemplate(s.rubric_type).name}
-                {isAdmin && ` · 평가자 ${evaluatorCount}명`}
+                {canManage && ` · 평가자 ${evaluatorCount}명`}
               </CardDescription>
             </CardHeader>
-            {!isAdmin ? (
+            {!canManage ? (
               <CardContent>
                 <Link href={`/evaluate/${s.id}`}
                   className="block rounded-lg bg-primary py-1.5 text-center text-sm font-medium text-primary-foreground">
