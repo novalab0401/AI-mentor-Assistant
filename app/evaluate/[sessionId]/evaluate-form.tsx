@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
@@ -10,12 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { items } from "@/lib/rubric";
+import { useOperator } from "@/lib/use-operator";
 
 type Session = { session_no: number; mentor_name: string; major: string | null };
 
 export default function EvaluateForm() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const router = useRouter();
+  const operator = useOperator();
 
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [name, setName] = useState("");
@@ -23,14 +25,14 @@ export default function EvaluateForm() {
   const [memos, setMemos] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
+    // 선배(로그인 없음)는 시연 표를 직접 못 봐요.
+    // 대신 "이 링크의 시연 하나만" 알려 주는 DB 함수를 불러요.
     supabase
-      .from("sessions")
-      .select("session_no, mentor_name, major")
-      .eq("id", sessionId)
-      .single()
-      .then(({ data }) => setSession(data ?? null));
+      .rpc("get_evaluation_session", { p_id: sessionId })
+      .then(({ data }) => setSession((data as Session[] | null)?.[0] ?? null));
   }, [sessionId]);
 
   const done = Object.keys(scores).length;
@@ -59,12 +61,36 @@ export default function EvaluateForm() {
       alert("저장 실패: " + error.message);
       return;
     }
-    router.push(`/sessions/${sessionId}`);
+    setSaving(false);
+    setScores({});
+    setMemos({});
+    setSubmitted(true);
   }
 
   if (session === undefined) return <main className="p-4">불러오는 중...</main>;
   if (session === null)
     return <main className="p-4">존재하지 않는 시연이에요. 링크를 다시 확인해 주세요.</main>;
+
+  if (submitted) {
+    return (
+      <main className="mx-auto max-w-md space-y-4 p-4 pt-16 text-center">
+        <h1 className="text-xl font-bold">제출 완료!</h1>
+        <p className="text-sm text-muted-foreground">
+          {name.trim()} 님, {session.mentor_name} 멘토 시연 평가에 참여해 주셔서 감사해요.
+        </p>
+        <Button variant="outline" className="w-full"
+          onClick={() => { setName(""); setSubmitted(false); }}>
+          다른 평가자로 한 번 더 입력
+        </Button>
+        {operator && (
+          <Link href={`/sessions/${sessionId}`}
+            className="block rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground">
+            결과 보기 (운영자)
+          </Link>
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">

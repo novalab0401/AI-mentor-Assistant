@@ -28,6 +28,7 @@ export default function SessionDetail() {
   const [reloadKey, setReloadKey] = useState(0); // 값이 바뀌면 데이터를 다시 불러와요
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     supabase
@@ -131,10 +132,22 @@ export default function SessionDetail() {
         <p className="text-sm text-muted-foreground">발표 멘토 (평가받는 사람)</p>
       </div>
 
-      <Link href={`/evaluate/${sessionId}`}
-        className="block rounded-md bg-primary py-2 text-center text-sm font-medium text-primary-foreground">
-        이 시연 평가하기
-      </Link>
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant="outline"
+          onClick={() => {
+            navigator.clipboard.writeText(`${window.location.origin}/evaluate/${sessionId}`);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? "복사됨!" : "평가 링크 복사"}
+        </Button>
+        <Link href={`/evaluate/${sessionId}`}
+          className="flex items-center justify-center rounded-lg bg-primary text-sm font-medium text-primary-foreground">
+          직접 평가하기
+        </Link>
+      </div>
 
       <Card>
         <CardHeader>
