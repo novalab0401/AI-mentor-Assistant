@@ -167,6 +167,11 @@ const mentorAnchors = {
     "4점 예: \"유체역학은 비행기가 왜 뜨는지, 물이 파이프에서 어떻게 흐르는지 배우는 과목이에요. 비행기가 어떻게 뜨는지 들어본 사람?\"처럼 대상에 맞는 일상 예시로 풀고 이해했는지 확인.",
     "용어·설명 수준은 이 항목에서만 판단해요. '학생 파악과 맞춤'에서 같은 이유로 다시 깎지 않아요.",
   ],
+  question: [
+    "학생이 떠올린 구체적인 예(자동차, 로봇)를 엮어 공통점을 묻고, 그 답을 발판으로 핵심 개념(역학)을 설명하는 질문은 좋은 발판 질문이에요 → 3점. 예: \"왜 자동차랑 로봇이 같은 과에서 나올까요?\"",
+    "4점은 학생 답에 한 번 더 물어 학생이 스스로 개념에 닿게 할 때예요. 예: 학생 \"둘 다 움직이니까요\" → \"그럼 움직이게 하려면 뭐가 필요할까?\" → 학생이 '힘', '엔진'을 말하게 한 뒤 \"그걸 배우는 게 역학이에요\"",
+    "\"이해됐죠?\", \"질문 없죠?\"처럼 예·아니오로 끝나는 확인만 있으면 1~2점.",
+  ],
   time: [
     "계획 시간보다 3분 넘게 초과하면 2점 이하. 초과하면서 진로나 정리까지 못 하면 1점.",
     "앞부분(학과 소개)에 시간을 다 쓰고 진로·정리를 서두르면 2점.",
@@ -306,7 +311,7 @@ export const templates: Template[] = [
     items: [
       common("structure", 실행, false, mentorAnchors.structure),
       common("explanation", 실행, false, mentorAnchors.explanation),
-      common("question", 실행),
+      common("question", 실행, false, mentorAnchors.question),
       common("nonverbal", 실행, true),
       common("time", 실행, false, mentorAnchors.time),
       majorAccuracy, material, studentFit, careerAction, balance, studentQuestions,

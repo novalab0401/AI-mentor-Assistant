@@ -4,7 +4,7 @@
 import type { ScoredItem, Template } from "./rubric";
 
 // 프롬프트를 고치면 버전을 올리세요. 결과마다 어떤 버전으로 채점했는지 남아서 비교할 수 있어요.
-export const PROMPT_VERSION = "v9-2026-10-10"; // v9: 균형과 현실성 앵커
+export const PROMPT_VERSION = "v10-2026-10-10"; // v10: 질문의 질 앵커(발판 질문)
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전문가가 만든 평가 기준(루브릭)에 따라 수업 전사문을 채점한다.
