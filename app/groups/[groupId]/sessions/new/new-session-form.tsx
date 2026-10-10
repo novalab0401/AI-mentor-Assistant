@@ -77,7 +77,7 @@ export default function NewSessionForm() {
       alert("생성 실패: " + error.message);
       return;
     }
-    router.push(`/evaluate/${data.id}`);
+    router.push(`/sessions/${data.id}`);
   }
 
   return (
@@ -86,7 +86,7 @@ export default function NewSessionForm() {
       <div>
         <h1 className="text-xl font-bold">평가받을 수업 등록</h1>
         <p className="text-sm text-muted-foreground">
-          평가받을 사람을 그룹 멤버 중에서 고르면, 그 사람이 로그인해서 홈 화면의 "내가 받은 평가"에서 바로 결과를 봐요.
+          평가받을 사람을 그룹 멤버 중에서 고르면, 그 사람이 로그인해서 홈 화면의 “내가 받은 평가”에서 바로 결과를 봐요.
         </p>
       </div>
 
@@ -119,7 +119,7 @@ export default function NewSessionForm() {
           <>
             <Input placeholder="이름" value={mentorName} onChange={(e) => setMentorName(e.target.value)} />
             <p className="text-xs text-muted-foreground">
-              멤버가 아니면 사이트에서 직접 볼 수 없어요. 결과 화면의 "피드백 링크"를 보내 주세요.
+              멤버가 아니면 사이트에서 직접 볼 수 없어요. 결과 화면의 “피드백 링크”를 보내 주세요.
             </p>
           </>
         )}
@@ -133,7 +133,7 @@ export default function NewSessionForm() {
       </div>
 
       <Button className="w-full" disabled={!canCreate} onClick={handleCreate}>
-        {saving ? "만드는 중..." : "등록하고 평가 시작"}
+        {saving ? "만드는 중..." : "수업 등록"}
       </Button>
     </main>
   );

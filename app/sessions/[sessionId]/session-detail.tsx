@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import RubricForm from "@/components/rubric-form";
-import AiPanel, { type HumanStat } from "@/components/ai-panel";
 import { supabase } from "@/lib/supabase";
 import {
   getTemplate, groupsOf, isComplete, scoredOf, textOf, toRows, type Answers,
@@ -174,21 +173,42 @@ export default function SessionDetail() {
         <p className="text-sm text-muted-foreground">발표 멘토 (평가받는 사람) · 평가지: {template.name}</p>
       </div>
 
+      {/* ── 두 가지 평가: 서로 독립적이에요. 하나만 해도 되고, 둘 다 하면 AI 화면에서 비교해 줘요 ── */}
       <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant="outline"
-          onClick={() => {
-            navigator.clipboard.writeText(`${window.location.origin}/evaluate/${sessionId}`);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-        >
-          {copied ? "복사됨!" : "평가 링크 복사"}
-        </Button>
-        <Link href={`/evaluate/${sessionId}`}
-          className="flex items-center justify-center rounded-lg bg-primary text-sm font-medium text-primary-foreground">
-          직접 평가하기
-        </Link>
+        <Card>
+          <CardHeader>
+            <CardTitle>사람 평가</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/evaluate/${sessionId}`);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }}
+            >
+              {copied ? "복사됨!" : "평가 링크 복사"}
+            </Button>
+            <Link href={`/evaluate/${sessionId}`}
+              className="block rounded-lg bg-primary py-1.5 text-center text-sm font-medium text-primary-foreground">
+              직접 평가하기
+            </Link>
+          </CardContent>
+        </Card>
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle>AI 평가</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">전사문으로 AI가 같은 평가지로 채점해요.</p>
+            <Link href={`/sessions/${sessionId}/ai`}
+              className="block rounded-lg bg-primary py-1.5 text-center text-sm font-medium text-primary-foreground">
+              AI 평가 열기
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
       {/* ── 멘토에게 결과 공유 ── */}
@@ -225,7 +245,7 @@ export default function SessionDetail() {
       {/* ── 항목별 평균 ── */}
       <Card>
         <CardHeader>
-          <CardTitle>항목별 평균 (평가자 {evaluators.length}명)</CardTitle>
+          <CardTitle>사람 평가 결과 · 항목별 평균 (평가자 {evaluators.length}명)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {groups
@@ -254,19 +274,6 @@ export default function SessionDetail() {
         </CardContent>
       </Card>
 
-      {/* ── AI 채점 (이 화면은 관리하는 사람만 들어와요) ── */}
-      <AiPanel
-        sessionId={sessionId}
-        template={template}
-        presenter={session.mentor_name}
-        topic={session.major}
-        human={Object.fromEntries(
-          scoredItems.map((i): [string, HumanStat] => {
-            const st = stats(i.id);
-            return [i.id, { avg: st.n > 0 ? Number(st.avg) : null, n: st.n }];
-          })
-        )}
-      />
 
       {evaluators.length === 0 && (
         <p className="text-sm text-muted-foreground">아직 평가가 없어요.</p>

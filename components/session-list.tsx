@@ -185,10 +185,14 @@ export default function SessionList({
                 </Link>
               </CardContent>
             ) : (
-            <CardContent className="grid grid-cols-3 gap-2">
+            <CardContent className="grid grid-cols-2 gap-2">
               <Link href={`/sessions/${s.id}`}
                 className="rounded-lg bg-primary py-1.5 text-center text-sm font-medium text-primary-foreground">
-                결과 보기
+                사람 평가 · 결과
+              </Link>
+              <Link href={`/sessions/${s.id}/ai`}
+                className="rounded-lg border border-primary/60 py-1.5 text-center text-sm font-medium">
+                AI 평가
               </Link>
               <Button variant="outline" disabled={busy || draft !== null}
                 onClick={() =>

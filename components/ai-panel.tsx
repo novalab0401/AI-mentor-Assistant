@@ -167,15 +167,16 @@ export default function AiPanel({
   const pairs = items
     .map((i) => ({ h: human[i.id]?.avg ?? null, a: scoreOf(i.id)?.score ?? null }))
     .filter((p): p is { h: number; a: number } => p.h !== null && p.a !== null);
+  const hasHuman = Object.values(human).some((h) => h.avg !== null);
   const exact = pairs.filter((p) => Math.abs(p.a - p.h) < 0.5).length;
   const within1 = pairs.filter((p) => Math.abs(p.a - p.h) <= 1).length;
 
   return (
     <Card className="border-primary/40">
       <CardHeader>
-        <CardTitle>AI 채점 (운영진·팀장 전용)</CardTitle>
+        <CardTitle>AI 채점</CardTitle>
         <CardDescription>
-          전사문을 바탕으로 AI가 같은 평가지로 채점해요. 사람 점수와 비교해 일치하는 항목만 나중에 공식 지표로 써요.
+          수업 전사문으로 AI가 평가지에 따라 채점해요. 사람 평가와는 따로 진행되고, 사람 평가가 있으면 항목별로 비교해 보여 줘요.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
@@ -265,15 +266,13 @@ export default function AiPanel({
         {/* ── 3. 결과 ── */}
         {run && (
           <div className="space-y-3">
-            <p className="font-medium">3. 사람 vs AI</p>
+            <p className="font-medium">3. AI 채점 결과{hasHuman && " · 사람 평가와 비교"}</p>
 
-            {pairs.length > 0 ? (
+            {pairs.length > 0 && (
               <p className="rounded-md bg-muted px-3 py-2">
                 비교 가능한 {pairs.length}개 항목 중 <b>거의 같음 {exact}개</b> (차이 0.5 미만),{" "}
                 <b>1점 이내 {within1}개</b>
               </p>
-            ) : (
-              <p className="text-muted-foreground">사람 평가가 들어오면 항목별로 비교해 보여 줘요.</p>
             )}
 
             <div className="divide-y rounded-md border">
@@ -288,7 +287,9 @@ export default function AiPanel({
                       onClick={() => setOpen(expanded ? null : item.id)}>
                       <span>{item.title}</span>
                       <span className="flex shrink-0 items-center gap-2 text-xs">
-                        <span className="text-muted-foreground">사람 {h?.avg != null ? h.avg.toFixed(1) : "-"}</span>
+                        {hasHuman && (
+                          <span className="text-muted-foreground">사람 {h?.avg != null ? h.avg.toFixed(1) : "-"}</span>
+                        )}
                         <span className="font-semibold">AI {s ? (s.score ?? "판단 불가") : "-"}</span>
                         {diff !== null && Math.abs(diff) > 1 && (
                           <span className="rounded bg-destructive/15 px-1 text-destructive">차이 큼</span>
