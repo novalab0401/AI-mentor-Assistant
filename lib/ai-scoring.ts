@@ -4,7 +4,7 @@
 import type { ScoredItem, Template } from "./rubric";
 
 // 프롬프트를 고치면 버전을 올리세요. 결과마다 어떤 버전으로 채점했는지 남아서 비교할 수 있어요.
-export const PROMPT_VERSION = "v1-2026-10-10";
+export const PROMPT_VERSION = "v2-2026-10-10";
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전문가가 만든 평가 기준(루브릭)에 따라 수업 전사문을 채점한다.
@@ -18,13 +18,16 @@ export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전
 6. rationale은 어떤 기준 문장에 왜 해당하는지 2~3문장으로 쓴다.
 7. next_action은 다음 수업에서 바로 해 볼 수 있는 구체적인 행동 한 가지로 쓴다. 예: "3번 슬라이드 설명 뒤에 '방금 내용을 친구에게 한 문장으로 설명해 볼래?'라고 묻는다."
 8. strengths와 improvements는 수업 전체에 대한 핵심 2~3개씩, 근거가 되는 장면을 함께 쓴다.
-9. 모든 글은 한국어로 쓴다.`;
+9. 모든 글은 한국어로 쓴다.
+10. 수업 길이는 '수업 정보'의 계획 시간·실제 시간만 근거로 판단한다. 전사문의 분량이나 시간 표시로 수업 길이를 추정하지 않는다(전사문은 일부만 담겼을 수 있다). 시간 정보가 없으면 단계별 시간 배분과 정리 유무만 보고, 전체 길이가 길다·짧다고 말하지 않는다.`;
 
 export function buildUserPrompt(opts: {
   template: Template;
   presenter: string;
   topic: string | null;
   transcript: string;
+  plannedMinutes?: number | null;
+  actualMinutes?: number | null;
 }) {
   const items = opts.template.items.filter((i): i is ScoredItem => i.kind === "score");
   const rubricText = items
@@ -39,6 +42,8 @@ export function buildUserPrompt(opts: {
 - 평가지: ${opts.template.name}
 - 수업한 사람: ${opts.presenter}
 - 전공·주제: ${opts.topic ?? "(없음)"}
+- 계획 시간: ${opts.plannedMinutes ? `${opts.plannedMinutes}분` : "(입력 안 됨)"}
+- 실제 수업 시간: ${opts.actualMinutes ? `${opts.actualMinutes}분` : "(입력 안 됨)"}
 
 ## 평가 항목 (모든 항목을 빠짐없이 채점)
 ${rubricText}

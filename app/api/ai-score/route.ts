@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   if (!session) return fail(404, "수업을 찾을 수 없어요.");
 
   const { data: transcript } = await sb
-    .from("transcripts").select("id, content").eq("session_id", sessionId)
+    .from("transcripts").select("id, content, planned_minutes, actual_minutes").eq("session_id", sessionId)
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (!transcript) return fail(400, "먼저 전사문을 저장해 주세요.");
 
@@ -73,6 +73,8 @@ export async function POST(request: Request) {
             presenter: session.mentor_name,
             topic: session.major,
             transcript: transcript.content,
+            plannedMinutes: transcript.planned_minutes,
+            actualMinutes: transcript.actual_minutes,
           }),
         },
       ],

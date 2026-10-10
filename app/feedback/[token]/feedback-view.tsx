@@ -221,7 +221,10 @@ function AiSection({
       })}
       {ai.summary && (
         <Card>
-          <CardContent className="space-y-2 pt-6 text-sm">
+          <CardHeader>
+            <CardTitle>AI 종합</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
             <p className="font-medium">잘한 점</p>
             <ul className="ml-4 list-disc">{ai.summary.strengths.map((t, i) => <li key={i}>{t}</li>)}</ul>
             <p className="font-medium">개선할 점</p>

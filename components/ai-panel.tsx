@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { scoredOf, type ScoredItem, type Template } from "@/lib/rubric";
 import { PROMPT_VERSION, buildManualPrompt, parseAiOutput, verifyQuote } from "@/lib/ai-scoring";
 
-type Transcript = { id: number; content: string; source: string; created_at: string };
+type Transcript = {
+  id: number; content: string; source: string; created_at: string;
+  planned_minutes: number | null; actual_minutes: number | null;
+};
 type Run = {
   id: number; created_at: string; model: string; prompt_version: string;
   summary: { strengths: string[]; improvements: string[] } | null;
@@ -36,6 +40,7 @@ export default function AiPanel({
   const [manual, setManual] = useState<{ answer: string; copied: boolean } | null>(null);
   const [transcript, setTranscript] = useState<Transcript | null | undefined>(undefined);
   const [draft, setDraft] = useState<string | null>(null); // 전사문 편집 중
+  const [minutes, setMinutes] = useState({ planned: "", actual: "" }); // 계획·실제 수업 시간(분)
   const [runs, setRuns] = useState<Run[]>([]);
   const [runId, setRunId] = useState<number | null>(null);
   const [scores, setScores] = useState<AiScore[]>([]);
@@ -47,7 +52,7 @@ export default function AiPanel({
 
   useEffect(() => {
     supabase
-      .from("transcripts").select("id, content, source, created_at")
+      .from("transcripts").select("id, content, source, created_at, planned_minutes, actual_minutes")
       .eq("session_id", sessionId).order("created_at", { ascending: false }).limit(1).maybeSingle()
       .then(({ data }) => setTranscript(data ?? null));
     supabase
@@ -82,7 +87,13 @@ export default function AiPanel({
   async function saveTranscript() {
     if (!draft?.trim()) return;
     setBusy(true);
-    const { error } = await supabase.from("transcripts").insert({ session_id: sessionId, content: draft.trim() });
+    const toMin = (v: string) => (/^\d+$/.test(v.trim()) && Number(v) > 0 ? Number(v) : null);
+    const { error } = await supabase.from("transcripts").insert({
+      session_id: sessionId,
+      content: draft.trim(),
+      planned_minutes: toMin(minutes.planned),
+      actual_minutes: toMin(minutes.actual),
+    });
     setBusy(false);
     if (error) return alert("저장 실패: " + error.message);
     setDraft(null);
@@ -112,7 +123,10 @@ export default function AiPanel({
   async function copyManualPrompt() {
     if (!transcript) return;
     await navigator.clipboard.writeText(
-      buildManualPrompt({ template, presenter, topic, transcript: transcript.content })
+      buildManualPrompt({
+        template, presenter, topic, transcript: transcript.content,
+        plannedMinutes: transcript.planned_minutes, actualMinutes: transcript.actual_minutes,
+      })
     );
     setManual({ answer: manual?.answer ?? "", copied: true });
   }
@@ -190,7 +204,9 @@ export default function AiPanel({
             <>
               {transcript ? (
                 <p className="text-muted-foreground">
-                  저장됨 · {transcript.content.length.toLocaleString()}자 · {transcript.created_at.slice(0, 16).replace("T", " ")}
+                  저장됨 · {transcript.content.length.toLocaleString()}자
+                  {" · "}계획 {transcript.planned_minutes ?? "-"}분 / 실제 {transcript.actual_minutes ?? "-"}분
+                  {" · "}{transcript.created_at.slice(0, 16).replace("T", " ")}
                 </p>
               ) : transcript === null ? (
                 <p className="text-muted-foreground">
@@ -198,7 +214,13 @@ export default function AiPanel({
                   (시간 표시·화자 표시가 있어도 괜찮아요)
                 </p>
               ) : null}
-              <Button size="sm" variant="outline" onClick={() => setDraft(transcript?.content ?? "")}>
+              <Button size="sm" variant="outline" onClick={() => {
+                setDraft(transcript?.content ?? "");
+                setMinutes({
+                  planned: transcript?.planned_minutes?.toString() ?? "",
+                  actual: transcript?.actual_minutes?.toString() ?? "",
+                });
+              }}>
                 {transcript ? "전사문 새로 넣기" : "전사문 붙여넣기"}
               </Button>
             </>
@@ -207,6 +229,21 @@ export default function AiPanel({
               <Textarea className="min-h-48 font-mono text-xs" value={draft}
                 placeholder={"예)\n[00:12] 멘토: 안녕하세요, 오늘은 기계공학과를 소개할게요.\n[00:20] 학생: ..."}
                 onChange={(e) => setDraft(e.target.value)} />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1 text-xs">
+                  <span className="text-muted-foreground">계획 시간(분)</span>
+                  <Input inputMode="numeric" placeholder="예) 30" value={minutes.planned}
+                    onChange={(e) => setMinutes({ ...minutes, planned: e.target.value })} />
+                </label>
+                <label className="space-y-1 text-xs">
+                  <span className="text-muted-foreground">실제 수업 시간(분)</span>
+                  <Input inputMode="numeric" placeholder="예) 28" value={minutes.actual}
+                    onChange={(e) => setMinutes({ ...minutes, actual: e.target.value })} />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                AI는 전사문만으로 수업이 몇 분이었는지 알 수 없어요. 시간을 적어야 시간 관리를 제대로 채점해요.
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={() => setDraft(null)}>취소</Button>
                 <Button disabled={busy || !draft.trim()} onClick={saveTranscript}>저장</Button>
