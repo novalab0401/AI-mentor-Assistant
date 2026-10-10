@@ -20,15 +20,17 @@ export default function NewSessionForm() {
   const [teamOptions, setTeamOptions] = useState<{ id: string; name: string }[] | null>(null);
   const [teamId, setTeamId] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+  // 발표자: 그룹 멤버 중에서 고르면 그 사람이 로그인해서 바로 결과를 볼 수 있어요
+  const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
+  const [presenterId, setPresenterId] = useState(""); // "" = 아직 안 고름, "other" = 멤버 아님
 
   useEffect(() => {
     (async () => {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth.user!.id;
-      const { data: me } = await supabase
-        .from("group_members").select("role, status")
-        .eq("group_id", groupId).eq("user_id", uid).maybeSingle();
-      const admin = me?.status === "active" && me.role === "admin";
+      // 그룹 운영진 또는 Nova Lab 관리자
+      const { data: adminCheck } = await supabase.rpc("is_group_admin", { gid: groupId });
+      const admin = adminCheck === true;
       setIsAdmin(admin);
       const { data: teams } = await supabase
         .from("teams").select("id, name, team_members(user_id, is_leader, status)")
@@ -38,18 +40,30 @@ export default function NewSessionForm() {
       );
       setTeamOptions(list.map((t) => ({ id: t.id, name: t.name })));
       if (!admin && list.length > 0) setTeamId(list[0].id);
+
+      const { data: members } = await supabase
+        .from("group_members").select("user_id, profiles(display_name)")
+        .eq("group_id", groupId).eq("status", "active");
+      setPeople(
+        ((members ?? []) as unknown as { user_id: string; profiles: { display_name: string } | null }[])
+          .map((m) => ({ id: m.user_id, name: m.profiles?.display_name ?? "(이름 없음)" }))
+          .sort((a, b) => a.name.localeCompare(b.name, "ko"))
+      );
     })();
   }, [groupId]);
 
   const isMentor = rubricType.startsWith("mentor");
-  const canCreate = mentorName.trim() !== "" && !saving && (isAdmin || teamId !== "");
+  const isOther = presenterId === "other";
+  const presenterName = isOther ? mentorName.trim() : people.find((p) => p.id === presenterId)?.name ?? "";
+  const canCreate = presenterName !== "" && !saving && (isAdmin || teamId !== "");
 
   async function handleCreate() {
     setSaving(true);
     const { data, error } = await supabase
       .from("sessions")
       .insert({
-        mentor_name: mentorName.trim(),
+        mentor_name: presenterName,
+        presenter_id: isOther ? null : presenterId,
         major: major.trim() || null,
         rubric_type: rubricType,
         group_id: groupId,
@@ -72,7 +86,7 @@ export default function NewSessionForm() {
       <div>
         <h1 className="text-xl font-bold">평가받을 수업 등록</h1>
         <p className="text-sm text-muted-foreground">
-          수업(시연)하는 사람을 적어 주세요. 평가하는 사람 이름은 평가 화면에서 각자 입력해요.
+          평가받을 사람을 그룹 멤버 중에서 고르면, 그 사람이 로그인해서 홈 화면의 "내가 받은 평가"에서 바로 결과를 봐요.
         </p>
       </div>
 
@@ -94,9 +108,23 @@ export default function NewSessionForm() {
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-medium">3. 수업 정보</p>
-        <Input placeholder={isMentor ? "발표하는 멘토 이름" : "수업하는 강사 이름"} value={mentorName}
-          onChange={(e) => setMentorName(e.target.value)} />
+        <p className="text-sm font-medium">3. 평가받을 사람</p>
+        <select className="w-full rounded-md border bg-background px-2 py-2 text-sm"
+          value={presenterId} onChange={(e) => setPresenterId(e.target.value)}>
+          <option value="">{isMentor ? "발표하는 멘토를 고르세요" : "수업하는 강사를 고르세요"}</option>
+          {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <option value="other">그룹 멤버가 아닌 사람 (이름 직접 입력)</option>
+        </select>
+        {isOther && (
+          <>
+            <Input placeholder="이름" value={mentorName} onChange={(e) => setMentorName(e.target.value)} />
+            <p className="text-xs text-muted-foreground">
+              멤버가 아니면 사이트에서 직접 볼 수 없어요. 결과 화면의 "피드백 링크"를 보내 주세요.
+            </p>
+          </>
+        )}
+
+        <p className="pt-2 text-sm font-medium">4. 수업 정보</p>
         <Input
           placeholder={isMentor ? "소개할 전공 (선택, 예: 기계공학과)" : "수업 주제 (선택, 예: PID 3차시 P 제어)"}
           value={major}

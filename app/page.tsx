@@ -7,6 +7,13 @@ import { supabase } from "@/lib/supabase";
 import { useOperator } from "@/lib/use-operator";
 import { roleLabels, type Role } from "@/lib/roles";
 import { canCreateGroup, usePermissions } from "@/lib/use-permissions";
+import { getTemplate } from "@/lib/rubric";
+
+type MyFeedback = {
+  session_id: string; session_no: number; session_date: string; mentor_name: string; major: string | null;
+  rubric_type: string; group_name: string; team_name: string | null;
+  feedback_open: boolean; feedback_token: string | null; evaluator_count: number;
+};
 
 type MyGroup = {
   role: Role;
@@ -18,6 +25,7 @@ export default function Home() {
   const user = useOperator();
   const [mine, setMine] = useState<MyGroup[] | null>(null);
   const [name, setName] = useState("");
+  const [feedback, setFeedback] = useState<MyFeedback[]>([]);
   const perm = usePermissions(!!user);
 
   useEffect(() => {
@@ -34,6 +42,7 @@ export default function Home() {
       .eq("id", user.id)
       .single()
       .then(({ data }) => setName(data?.display_name ?? ""));
+    supabase.rpc("my_feedback_list").then(({ data }) => setFeedback((data as MyFeedback[]) ?? []));
   }, [user]);
 
   async function logout() {
@@ -93,6 +102,40 @@ export default function Home() {
         <Link href="/admin" className="block rounded-md border border-dashed py-2 text-center text-sm">
           Nova Lab 관리자: 전체 그룹 현황
         </Link>
+      )}
+
+      {feedback.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            내가 받은 평가 {feedback.filter((f) => f.feedback_open).length > 0 &&
+              <span className="text-primary">· 확인 가능 {feedback.filter((f) => f.feedback_open).length}건</span>}
+          </h2>
+          {feedback.map((f) => {
+            const body = (
+              <>
+                <CardHeader>
+                  <CardDescription>
+                    {f.session_date} · {f.group_name}{f.team_name && ` · ${f.team_name}`}
+                  </CardDescription>
+                  <CardTitle>
+                    시연 #{f.session_no}{f.major && <span className="font-normal"> · {f.major}</span>}
+                  </CardTitle>
+                  <CardDescription>
+                    {getTemplate(f.rubric_type).name} · 평가자 {f.evaluator_count}명 ·{" "}
+                    {f.feedback_open ? <b className="text-primary">결과 보기 →</b> : "운영진이 공개하면 볼 수 있어요"}
+                  </CardDescription>
+                </CardHeader>
+              </>
+            );
+            return f.feedback_open && f.feedback_token ? (
+              <Link key={f.session_id} href={`/feedback/${f.feedback_token}`} className="block">
+                <Card className="border-primary/40 transition-colors hover:bg-muted">{body}</Card>
+              </Link>
+            ) : (
+              <Card key={f.session_id} className="opacity-70">{body}</Card>
+            );
+          })}
+        </section>
       )}
 
       <section className="space-y-2">

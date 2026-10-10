@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
+import PasswordInput from "@/components/password-input";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -45,7 +46,7 @@ export default function LoginPage() {
       <form onSubmit={handleLogin} className="space-y-3">
         <Input type="email" placeholder="이메일" autoComplete="email"
           value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Input type="password" placeholder="비밀번호" autoComplete="current-password"
+        <PasswordInput placeholder="비밀번호" autoComplete="current-password"
           value={password} onChange={(e) => setPassword(e.target.value)} />
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" className="w-full" disabled={busy || !email || !password}>

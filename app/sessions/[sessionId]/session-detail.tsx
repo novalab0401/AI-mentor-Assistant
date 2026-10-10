@@ -15,7 +15,7 @@ import {
 
 type Session = {
   session_no: number; mentor_name: string; major: string | null; session_date: string; rubric_type: string;
-  feedback_token: string; feedback_open: boolean; group_id: string;
+  feedback_token: string; feedback_open: boolean; group_id: string; presenter_id: string | null;
 };
 type Evaluation = {
   id: number; evaluator_name: string; item_id: string; score: number | null; memo: string | null;
@@ -37,7 +37,7 @@ export default function SessionDetail() {
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("session_no, mentor_name, major, session_date, rubric_type, feedback_token, feedback_open, group_id")
+      .select("session_no, mentor_name, major, session_date, rubric_type, feedback_token, feedback_open, group_id, presenter_id")
       .eq("id", sessionId)
       .single()
       .then(({ data }) => setSession(data ?? null));
@@ -198,8 +198,12 @@ export default function SessionDetail() {
         <CardContent className="space-y-3 text-sm">
           <p className="text-muted-foreground">
             {session.feedback_open
-              ? "공개 중이에요. 피드백 링크로 점수와 의견을 볼 수 있어요. 평가자 이름은 보이지 않아요."
-              : "비공개예요. 링크를 미리 보내도 공개하기 전에는 \"아직 공개 전\"으로 보여요."}
+              ? session.presenter_id
+                ? "공개 중이에요. 본인이 로그인하면 홈 화면 \"내가 받은 평가\"에서 바로 볼 수 있어요. 평가자 이름은 보이지 않아요."
+                : "공개 중이에요. 피드백 링크로 점수와 의견을 볼 수 있어요. 평가자 이름은 보이지 않아요."
+              : session.presenter_id
+                ? "비공개예요. 공개하면 본인 홈 화면의 \"내가 받은 평가\"에 바로 나타나요."
+                : "비공개예요. 링크를 미리 보내도 공개하기 전에는 \"아직 공개 전\"으로 보여요."}
           </p>
           <div className="grid grid-cols-2 gap-2">
             <Button variant={session.feedback_open ? "outline" : "default"} disabled={busy}

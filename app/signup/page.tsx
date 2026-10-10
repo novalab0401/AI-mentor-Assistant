@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
+import PasswordInput from "@/components/password-input";
 import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
@@ -13,11 +14,14 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const canSubmit = name.trim() !== "" && email.trim() !== "" && password.length >= 6 && !busy;
+  const mismatch = password2 !== "" && password !== password2;
+  const canSubmit =
+    name.trim() !== "" && email.trim() !== "" && password.length >= 6 && password === password2 && !busy;
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -61,8 +65,18 @@ export default function SignupPage() {
             onChange={(e) => setName(e.target.value)} />
           <Input type="email" placeholder="이메일" autoComplete="email" value={email}
             onChange={(e) => setEmail(e.target.value)} />
-          <Input type="password" placeholder="비밀번호 (6자 이상)" autoComplete="new-password"
+          <PasswordInput placeholder="비밀번호 (6자 이상)" autoComplete="new-password"
             value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput placeholder="비밀번호 확인 (한 번 더)" autoComplete="new-password"
+            value={password2} onChange={(e) => setPassword2(e.target.value)}
+            aria-invalid={mismatch} />
+          {password !== "" && password.length < 6 && (
+            <p className="text-xs text-muted-foreground">비밀번호는 6자 이상이어야 해요.</p>
+          )}
+          {mismatch && <p className="text-xs text-destructive">두 비밀번호가 달라요.</p>}
+          {password2 !== "" && !mismatch && password.length >= 6 && (
+            <p className="text-xs text-primary">비밀번호가 일치해요.</p>
+          )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={!canSubmit}>
             {busy ? "가입 중..." : "가입하기"}
