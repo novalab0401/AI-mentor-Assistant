@@ -7,14 +7,18 @@ import AudienceFields from "@/components/audience-fields";
 import { Button } from "@/components/ui/button";
 import { audienceFromRow, audienceToRow, describeAudience, type Audience } from "@/lib/audience";
 import { findMajor } from "@/lib/majors";
+import ScenePicker from "@/components/scene-picker";
+import PlanField from "@/components/plan-field";
+import PlanReviewPanel from "@/components/plan-review-panel";
 import AiPanel, { type HumanStat } from "@/components/ai-panel";
 import { supabase } from "@/lib/supabase";
-import { getTemplate, scoredOf } from "@/lib/rubric";
+import { getTemplate, sceneLabel, scoredOf, type Scene } from "@/lib/rubric";
 
 type Session = {
   session_no: number; mentor_name: string; major: string | null; session_date: string;
   rubric_type: string; group_id: string; presenter_id: string | null;
   audience_level: string | null; audience_note: string | null; audience_size: number | null;
+  scene: Scene; lesson_plan: string | null;
 };
 
 // AI 평가 전용 화면 — 사람 평가와 독립적이에요.
@@ -25,12 +29,13 @@ export default function AiView() {
   const [human, setHuman] = useState<Record<string, HumanStat>>({});
   const [canManage, setCanManage] = useState(false);
   const [audienceEdit, setAudienceEdit] = useState<Audience | null>(null);
+  const [ctxEdit, setCtxEdit] = useState<{ scene: Scene; plan: string } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("session_no, mentor_name, major, session_date, rubric_type, group_id, presenter_id, audience_level, audience_note, audience_size")
+      .select("session_no, mentor_name, major, session_date, rubric_type, group_id, presenter_id, audience_level, audience_note, audience_size, scene, lesson_plan")
       .eq("id", sessionId)
       .single()
       .then(({ data }) => setSession(data ?? null));
@@ -62,9 +67,19 @@ export default function AiView() {
   if (session === undefined) return <main className="p-4">불러오는 중...</main>;
   if (session === null) return <main className="p-4">이 수업을 볼 권한이 없거나 존재하지 않아요.</main>;
 
-  const template = getTemplate(session.rubric_type);
+  const template = getTemplate(session.rubric_type, session.scene);
   const audience = describeAudience(session);
   const majorProfile = template.id.startsWith("mentor") ? findMajor(session.major) : null;
+
+  async function saveContext() {
+    if (!ctxEdit) return;
+    const { error } = await supabase.rpc("set_session_context", {
+      p_session: sessionId, p_scene: ctxEdit.scene, p_plan: ctxEdit.plan,
+    });
+    if (error) return alert("저장 실패: " + error.message);
+    setCtxEdit(null);
+    setReloadKey((k) => k + 1);
+  }
 
   async function saveAudience() {
     if (!audienceEdit) return;
@@ -117,6 +132,41 @@ export default function AiView() {
         </p>
       )}
 
+      {/* ── 평가 장면·수업 계획 ── */}
+      <div className="space-y-2 rounded-md border p-3 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <p><b>평가 장면</b> · {sceneLabel(session.scene)}</p>
+          {!ctxEdit && (
+            <Button size="sm" variant="outline"
+              onClick={() => setCtxEdit({ scene: session.scene, plan: session.lesson_plan ?? "" })}>
+              {session.lesson_plan ? "장면·계획 수정" : "장면 수정·계획 입력"}
+            </Button>
+          )}
+        </div>
+        {session.scene === "solo" && !ctxEdit && (
+          <p className="text-xs text-muted-foreground">학생 없이 한 연습이라 학생과 주고받는 항목(질문의 질, 학생 파악, 학생 질문 응답 등)은 빼고 평가해요.</p>
+        )}
+        {ctxEdit ? (
+          <>
+            <ScenePicker value={ctxEdit.scene} onChange={(scene) => setCtxEdit({ ...ctxEdit, scene })} />
+            <p className="pt-1 font-medium">수업 계획 (선택)</p>
+            <PlanField value={ctxEdit.plan} onChange={(plan) => setCtxEdit({ ...ctxEdit, plan })} />
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" onClick={() => setCtxEdit(null)}>취소</Button>
+              <Button size="sm" onClick={saveContext}>저장</Button>
+            </div>
+          </>
+        ) : session.lesson_plan ? (
+          <>
+            <p className="font-medium">수업 계획</p>
+            <p className="whitespace-pre-wrap rounded-md bg-muted p-2 text-xs">{session.lesson_plan}</p>
+            <PlanReviewPanel sessionId={sessionId} plan={session.lesson_plan} reloadKey={reloadKey} />
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground">수업 계획(순서·시간)을 적으면 수업 전에 AI가 계획을 검토하고, 수업 후에는 계획대로 했는지도 봐요.</p>
+        )}
+      </div>
+
       {/* ── 수업 대상 ── */}
       <div className="space-y-2 rounded-md border p-3 text-sm">
         <div className="flex items-center justify-between gap-2">
@@ -151,6 +201,8 @@ export default function AiView() {
         presenter={session.mentor_name}
         topic={session.major}
         audience={audience}
+        sceneLabel={sceneLabel(session.scene)}
+        lessonPlan={session.lesson_plan}
         human={human}
       />
       <p className="text-xs text-muted-foreground">평가 항목 {scoredOf(template.items).length}개</p>

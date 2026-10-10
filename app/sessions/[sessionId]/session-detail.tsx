@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import RubricForm from "@/components/rubric-form";
 import { supabase } from "@/lib/supabase";
-import {
+import { sceneLabel,
   getTemplate, groupsOf, isComplete, scoredOf, textOf, toRows, type Answers,
 } from "@/lib/rubric";
 
 type Session = {
   session_no: number; mentor_name: string; major: string | null; session_date: string; rubric_type: string;
   feedback_token: string; feedback_open: boolean; group_id: string; presenter_id: string | null;
+  scene: string | null;
 };
 type Evaluation = {
   id: number; evaluator_name: string; item_id: string; score: number | null; memo: string | null;
@@ -37,7 +38,7 @@ export default function SessionDetail() {
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("session_no, mentor_name, major, session_date, rubric_type, feedback_token, feedback_open, group_id, presenter_id")
+      .select("session_no, mentor_name, major, session_date, rubric_type, feedback_token, feedback_open, group_id, presenter_id, scene")
       .eq("id", sessionId)
       .single()
       .then(({ data }) => setSession(data ?? null));
@@ -55,7 +56,7 @@ export default function SessionDetail() {
   if (session === undefined) return <main className="p-4">불러오는 중...</main>;
   if (session === null) return <main className="p-4">존재하지 않는 시연이에요.</main>;
 
-  const template = getTemplate(session.rubric_type);
+  const template = getTemplate(session.rubric_type, session.scene);
   const items = template.items;
   const scoredItems = scoredOf(items);
   const textItems = textOf(items);
@@ -170,7 +171,7 @@ export default function SessionDetail() {
           {session.mentor_name}
           {session.major && <span className="font-normal"> · {session.major}</span>}
         </h1>
-        <p className="text-sm text-muted-foreground">발표 멘토 (평가받는 사람) · 평가지: {template.name}</p>
+        <p className="text-sm text-muted-foreground">발표 멘토 (평가받는 사람) · 평가지: {template.name} · {sceneLabel(session.scene)}</p>
       </div>
 
       {/* ── 두 가지 평가: 서로 독립적이에요. 하나만 해도 되고, 둘 다 하면 AI 화면에서 비교해 줘요 ── */}

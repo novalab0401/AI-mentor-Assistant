@@ -161,6 +161,8 @@ const common = (id: keyof typeof COMMON, group: string, allowNA = false, anchors
 const mentorAnchors = {
   structure: [
     "전공·진로 소개는 학과에서 배우는 것과 진로가 중심이어야 해요. 개인 입시 경험, 학교생활 이야기 등 다른 주제가 수업의 중심을 차지하면 2점 이하.",
+    "전공·진로 소개는 강의형일 수 있어요. 학생 활동이 없다고 감점하지 않아요. 강의형이면 활동 대신 중간중간 질문·확인이 흐름에 들어 있는지를 봐요. 학생 활동(직접 해 보기, 짝 토론 등)이 있으면 높은 점수의 근거로 써요. (2026-10-10 김재호)",
+    "멘토가 수업 계획(순서·시간)을 냈다면 계획대로 진행했는지를 봐요. 계획과 달라도 학생 반응에 맞춘 이유 있는 조정이면 감점하지 않아요. 계획 자체가 적절한지는 수업 전 '계획 검토'에서 따로 봐요.",
   ],
   explanation: [
     "대학 과목 용어(예: 고체역학, 유체역학)를 대상 수준에 맞게 풀지 않고 이름만 나열하면 1~2점. 하나만 풀고 나머지는 이름만 말하면 2점.",
@@ -353,8 +355,26 @@ export const templates: Template[] = [
 
 export const defaultTemplateId = "mentor_mock";
 
-export function getTemplate(id: string | null | undefined): Template {
-  return templates.find((t) => t.id === id) ?? templates[0];
+// ── 평가 장면 ──
+// 학생이 없는 장면(혼자 연습·녹화)에서는 학생과 주고받아야 볼 수 있는 항목을 빼요.
+// 빼지 않으면 "질문 없음 → 1점"처럼 억울한 점수가 나와요 (2026-10-10 공개 영상 테스트에서 확인).
+export type Scene = "live" | "mock" | "solo";
+export const scenes: { id: Scene; label: string; help: string }[] = [
+  { id: "live", label: "실제 수업", help: "실제 학생 앞에서 한 멘토링·수업" },
+  { id: "mock", label: "모의 시연", help: "선배·동료가 학생 역할을 하며 들은 시연" },
+  { id: "solo", label: "혼자 연습·녹화", help: "듣는 학생 없이 혼자 말한 연습이나 영상 (학생과 주고받는 항목은 빼고 평가)" },
+];
+export const sceneLabel = (s: string | null | undefined) => scenes.find((x) => x.id === s)?.label ?? "모의 시연";
+// 학생과 주고받아야 평가할 수 있는 항목
+export const STUDENT_ITEMS = new Set([
+  "question", "adjust", "feedback", "trouble", "student_centered", "error_diagnosis", "priority",
+  "student_fit", "student_questions",
+]);
+
+export function getTemplate(id: string | null | undefined, scene?: string | null): Template {
+  const t = templates.find((t) => t.id === id) ?? templates[0];
+  if (scene !== "solo") return t;
+  return { ...t, items: t.items.filter((i) => !STUDENT_ITEMS.has(i.id)) };
 }
 
 export const scoredOf = (items: RubricItem[]) =>

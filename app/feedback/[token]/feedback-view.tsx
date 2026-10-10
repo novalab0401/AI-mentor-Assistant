@@ -34,11 +34,13 @@ export default function FeedbackView() {
   const { token } = useParams<{ token: string }>();
   // undefined = 불러오는 중, null = 없는 링크
   const [data, setData] = useState<Feedback | null | undefined>(undefined);
+  const [scene, setScene] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
       .rpc("get_feedback", { p_token: token })
       .then(({ data }) => setData((data as Feedback | null) ?? null));
+    supabase.rpc("get_feedback_scene", { p_token: token }).then(({ data }) => setScene((data as string | null) ?? null));
   }, [token]);
 
   if (data === undefined) return <main className="p-4">불러오는 중...</main>;
@@ -56,7 +58,7 @@ export default function FeedbackView() {
     );
   }
 
-  const template = getTemplate(data.rubric_type);
+  const template = getTemplate(data.rubric_type, scene);
   const items = template.items;
   const evals = data.evaluations;
   const evaluatorCount = new Set(evals.map((e) => e.evaluator)).size;

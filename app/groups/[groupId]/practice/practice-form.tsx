@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import TemplatePicker from "@/components/template-picker";
 import AudienceFields from "@/components/audience-fields";
+import ScenePicker from "@/components/scene-picker";
+import PlanField from "@/components/plan-field";
 import { audienceToRow, emptyAudience } from "@/lib/audience";
 import { supabase } from "@/lib/supabase";
-import { defaultTemplateId } from "@/lib/rubric";
+import { defaultTemplateId, type Scene } from "@/lib/rubric";
 
 // 멤버가 자기 수업을 직접 만들어 AI 평가로 연습하는 화면
 export default function PracticeForm() {
@@ -18,6 +20,8 @@ export default function PracticeForm() {
   const [rubricType, setRubricType] = useState(defaultTemplateId);
   const [topic, setTopic] = useState("");
   const [audience, setAudience] = useState(emptyAudience);
+  const [scene, setScene] = useState<Scene>("solo");
+  const [plan, setPlan] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function create() {
@@ -34,6 +38,8 @@ export default function PracticeForm() {
         major: topic.trim() || null,
         rubric_type: rubricType,
         ...audienceToRow(audience),
+        scene,
+        lesson_plan: plan.trim() || null,
       })
       .select("id")
       .single();
@@ -63,6 +69,14 @@ export default function PracticeForm() {
       <div className="space-y-2">
         <p className="text-sm font-medium">3. 수업 대상</p>
         <AudienceFields value={audience} onChange={setAudience} />
+      </div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium">4. 평가 장면</p>
+        <ScenePicker value={scene} onChange={setScene} />
+      </div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium">5. 수업 계획 (선택)</p>
+        <PlanField value={plan} onChange={setPlan} />
       </div>
       <Button className="w-full" disabled={busy} onClick={create}>
         {busy ? "만드는 중..." : "만들고 전사문 올리기"}

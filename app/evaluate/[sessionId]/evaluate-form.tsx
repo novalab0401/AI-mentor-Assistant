@@ -9,12 +9,13 @@ import BackLink from "@/components/back-link";
 import RubricForm from "@/components/rubric-form";
 import { supabase } from "@/lib/supabase";
 import { describeAudience } from "@/lib/audience";
-import { getTemplate, isComplete, scoredOf, toRows, type Answers } from "@/lib/rubric";
+import { sceneLabel, getTemplate, isComplete, scoredOf, toRows, type Answers } from "@/lib/rubric";
 import { useOperator } from "@/lib/use-operator";
 
 type Session = {
   session_no: number; mentor_name: string; major: string | null; rubric_type: string;
   audience_level: string | null; audience_note: string | null; audience_size: number | null;
+  scene: string | null;
 };
 
 const empty: Answers = { scores: {}, memos: {} };
@@ -38,7 +39,7 @@ export default function EvaluateForm() {
       .then(({ data }) => setSession((data as Session[] | null)?.[0] ?? null));
   }, [sessionId]);
 
-  const template = getTemplate(session?.rubric_type);
+  const template = getTemplate(session?.rubric_type, session?.scene);
   const items = template.items;
   const scoredItems = scoredOf(items);
   // 로그인한 사람이면 이름을 자동으로 채워요
@@ -118,7 +119,10 @@ export default function EvaluateForm() {
             {session.mentor_name}
             {session.major && <span className="font-normal"> · {session.major}</span>}
           </h1>
-          <p className="text-sm text-muted-foreground">평가지: {template.name}</p>
+          <p className="text-sm text-muted-foreground">평가지: {template.name} · {sceneLabel(session.scene)}</p>
+          {session.scene === "solo" && (
+            <p className="text-xs text-muted-foreground">학생 없이 한 연습이라 학생과 주고받는 항목은 빼고 평가해요.</p>
+          )}
           {describeAudience(session) && (
             <p className="text-sm"><b>수업 대상</b> · {describeAudience(session)}</p>
           )}

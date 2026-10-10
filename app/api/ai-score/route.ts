@@ -3,7 +3,7 @@
 // Claude API 키는 이 서버 코드에서만 써서 브라우저에 절대 노출되지 않아요.
 
 import { createClient } from "@supabase/supabase-js";
-import { getTemplate, scoredOf } from "@/lib/rubric";
+import { sceneLabel, getTemplate, scoredOf } from "@/lib/rubric";
 import {
   DEFAULT_MODEL, PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt, outputSchema, verifyQuote,
   type AiOutput,
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   // 2) 수업 정보와 가장 최근 전사문
   const { data: session } = await sb
-    .from("sessions").select("id, mentor_name, major, rubric_type, audience_level, audience_note, audience_size")
+    .from("sessions").select("id, mentor_name, major, rubric_type, audience_level, audience_note, audience_size, scene, lesson_plan")
     .eq("id", sessionId).single();
   if (!session) return fail(404, "수업을 찾을 수 없어요.");
 
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (!transcript) return fail(400, "먼저 전사문을 저장해 주세요.");
 
-  const template = getTemplate(session.rubric_type);
+  const template = getTemplate(session.rubric_type, session.scene);
   const items = scoredOf(template.items);
   const model = process.env.AI_MODEL || DEFAULT_MODEL;
 
@@ -77,6 +77,8 @@ export async function POST(request: Request) {
             topic: session.major,
             transcript: transcript.content,
             audience: describeAudience(session),
+            sceneLabel: sceneLabel(session.scene),
+            lessonPlan: session.lesson_plan,
             majorText: (() => {
               const m = findMajor(session.major);
               return m ? majorPromptText(m, session.audience_level) : null;

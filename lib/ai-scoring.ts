@@ -4,7 +4,7 @@
 import type { ScoredItem, Template } from "./rubric";
 
 // 프롬프트를 고치면 버전을 올리세요. 결과마다 어떤 버전으로 채점했는지 남아서 비교할 수 있어요.
-export const PROMPT_VERSION = "v10-2026-10-10"; // v10: 질문의 질 앵커(발판 질문)
+export const PROMPT_VERSION = "v11-2026-10-10"; // v11: 평가 장면, 수업 계획 대비 실행, 활동은 상황에 맞게
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전문가가 만든 평가 기준(루브릭)에 따라 수업 전사문을 채점한다.
@@ -21,7 +21,9 @@ export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전
 9. 모든 글은 한국어로 쓴다.
 10. 수업 길이는 다음 순서로 판단한다. ① '수업 정보'에 실제 수업 시간이 있으면 그것을 따른다. 전사문의 마지막 시간 표시와 크게 다르면 전사문이 일부만 담긴 것으로 보고, rationale에 그 점을 밝힌다. ② 실제 시간이 없으면 전사문의 시간 표시(예: [03:05])를 근거로 쓴다. ③ 시간 표시도 없으면 글의 분량으로 길이를 추측하지 않는다. 이때는 단계별 시간 배분과 정리 유무만 본다.
 11. 멘토는 수업 대상을 미리 알고 들어간다. 학년을 묻지 않은 것은 감점 사유가 아니다. 설명·용어·예시의 수준은 '수업 정보'의 대상을 기준으로 판단한다. 예: 중학생 대상인데 '역학', '미분' 같은 용어를 풀어 주지 않고 쓰면 설명의 적절성과 학생 파악과 맞춤을 낮게 본다. 대상 정보가 없으면 수준이 맞았는지 단정하지 말고, rationale에 "대상 정보가 없어 수준 적합성은 판단하지 않았다"고 밝힌다.
-12. '학과 공통 자료'가 주어지면 전공·진로 정보의 정확성은 그 자료를 기준으로 판단한다. 자료와 어긋나는 말은 감점하고, rationale에 자료의 어느 내용과 다른지 쓴다. '학교마다 다른 것'에 해당하는 말(예: 전공 선택 시기, 학년별 과목)은 자료와 달라도 틀렸다고 하지 않는다. 대신 학교마다 다르다는 점이나 확인 방법을 안내했는지를 본다. 진로 연결과 실천 안내의 next_action을 쓸 때는 자료의 관련 고교 과목·진로 탐색 활동 중 대상에게 맞는 것을 구체적으로 골라 쓴다. 학과 자료가 없으면 일반 지식으로 판단하되 확신이 없는 사실은 단정하지 않는다.`;
+12. '학과 공통 자료'가 주어지면 전공·진로 정보의 정확성은 그 자료를 기준으로 판단한다. 자료와 어긋나는 말은 감점하고, rationale에 자료의 어느 내용과 다른지 쓴다. '학교마다 다른 것'에 해당하는 말(예: 전공 선택 시기, 학년별 과목)은 자료와 달라도 틀렸다고 하지 않는다. 대신 학교마다 다르다는 점이나 확인 방법을 안내했는지를 본다. 진로 연결과 실천 안내의 next_action을 쓸 때는 자료의 관련 고교 과목·진로 탐색 활동 중 대상에게 맞는 것을 구체적으로 골라 쓴다. 학과 자료가 없으면 일반 지식으로 판단하되 확신이 없는 사실은 단정하지 않는다.
+13. '평가 장면'이 모의 시연이면 학생 발화는 선배·동료가 학생 역할을 한 것이다. 실제 학생 반응처럼 다루되, 역할극이라 반응이 적은 것을 멘토 탓으로 돌리지 않는다.
+14. '수업 계획'이 주어지면 수업 구조는 계획 대비 실행으로 판단한다. 계획한 순서와 시간대로 진행했는지, 달라졌다면 학생 반응에 맞춘 이유 있는 조정인지를 rationale에 쓴다. 계획이 없으면 일반적인 흐름(목표 제시 → 내용 → 확인 → 정리)으로 판단한다.`;
 
 export function buildUserPrompt(opts: {
   template: Template;
@@ -32,6 +34,8 @@ export function buildUserPrompt(opts: {
   actualMinutes?: number | null;
   audience?: string | null;
   majorText?: string | null;
+  sceneLabel?: string | null;
+  lessonPlan?: string | null;
 }) {
   const items = opts.template.items.filter((i): i is ScoredItem => i.kind === "score");
   const rubricText = items
@@ -48,6 +52,8 @@ export function buildUserPrompt(opts: {
 - 수업한 사람: ${opts.presenter}
 - 전공·주제: ${opts.topic ?? "(없음)"}
 - 수업 대상: ${opts.audience ?? "(입력 안 됨)"}
+- 평가 장면: ${opts.sceneLabel ?? "모의 시연"}
+- 수업 계획: ${opts.lessonPlan ? "\n" + opts.lessonPlan.split("\n").map((l) => "    " + l).join("\n") : "(제출 안 함)"}
 - 계획 시간: ${opts.plannedMinutes ? `${opts.plannedMinutes}분` : "(입력 안 됨)"}
 - 실제 수업 시간: ${opts.actualMinutes ? `${opts.actualMinutes}분` : "(입력 안 됨)"}
 

@@ -28,13 +28,15 @@ export type HumanStat = { avg: number | null; n: number };
 
 // 결과 화면의 AI 채점 영역 (운영진·팀장만 보여요)
 export default function AiPanel({
-  sessionId, template, presenter, topic, audience, human,
+  sessionId, template, presenter, topic, audience, sceneLabel, lessonPlan, human,
 }: {
   sessionId: string;
   template: Template;
   presenter: string;
   topic: string | null;
   audience: string | null;
+  sceneLabel: string;
+  lessonPlan: string | null;
   human: Record<string, HumanStat>;
 }) {
   const items: ScoredItem[] = scoredOf(template.items);
@@ -126,7 +128,7 @@ export default function AiPanel({
     if (!transcript) return;
     await navigator.clipboard.writeText(
       buildManualPrompt({
-        template, presenter, topic, audience, transcript: transcript.content,
+        template, presenter, topic, audience, sceneLabel, lessonPlan, transcript: transcript.content,
         majorText: (() => {
           const m = findMajor(topic);
           return m ? majorPromptText(m) : null;

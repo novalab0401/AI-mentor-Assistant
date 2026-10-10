@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import TemplatePicker from "@/components/template-picker";
 import AudienceFields from "@/components/audience-fields";
+import ScenePicker from "@/components/scene-picker";
+import PlanField from "@/components/plan-field";
 import { audienceToRow, emptyAudience } from "@/lib/audience";
 import { supabase } from "@/lib/supabase";
-import { defaultTemplateId } from "@/lib/rubric";
+import { defaultTemplateId, type Scene } from "@/lib/rubric";
 
 export default function NewSessionForm() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -18,6 +20,8 @@ export default function NewSessionForm() {
   const [mentorName, setMentorName] = useState("");
   const [major, setMajor] = useState("");
   const [audience, setAudience] = useState(emptyAudience);
+  const [scene, setScene] = useState<Scene>("mock");
+  const [plan, setPlan] = useState("");
   const [saving, setSaving] = useState(false);
   // 팀: 운영진은 아무 팀이나(또는 팀 없이), 팀장은 자기 팀만 고를 수 있어요
   const [teamOptions, setTeamOptions] = useState<{ id: string; name: string }[] | null>(null);
@@ -72,6 +76,8 @@ export default function NewSessionForm() {
         group_id: groupId,
         team_id: teamId || null,
         ...audienceToRow(audience),
+        scene,
+        lesson_plan: plan.trim() || null,
       })
       .select("id")
       .single();
@@ -137,6 +143,12 @@ export default function NewSessionForm() {
 
         <p className="pt-2 text-sm font-medium">5. 수업 대상</p>
         <AudienceFields value={audience} onChange={setAudience} />
+
+        <p className="pt-2 text-sm font-medium">6. 평가 장면</p>
+        <ScenePicker value={scene} onChange={setScene} />
+
+        <p className="pt-2 text-sm font-medium">7. 수업 계획 (선택)</p>
+        <PlanField value={plan} onChange={setPlan} />
       </div>
 
       <Button className="w-full" disabled={!canCreate} onClick={handleCreate}>
