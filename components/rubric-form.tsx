@@ -50,6 +50,14 @@ export default function RubricForm({
                   <CardHeader>
                     <CardTitle>{item.title}</CardTitle>
                     <CardDescription>{item.question}</CardDescription>
+                    {item.anchors && item.anchors.length > 0 && (
+                      <details className="text-xs text-muted-foreground">
+                        <summary className="cursor-pointer">판단 기준 예시 보기</summary>
+                        <ul className="mt-1 ml-4 list-disc space-y-1">
+                          {item.anchors.map((a, i) => <li key={i}>{a}</li>)}
+                        </ul>
+                      </details>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-4 gap-2">

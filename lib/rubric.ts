@@ -13,6 +13,7 @@ export type ScoredItem = {
   question: string;
   levels: [string, string, string, string]; // 1~4점 기준
   allowNA?: boolean; // "판단하기 어려움" 허용 (적용표의 △ 항목)
+  anchors?: string[]; // 판단 기준 예시(앵커): 이 평가지에서 경계를 어떻게 긋는지. 평가자와 AI가 함께 봐요
 };
 
 export type TextItem = {
@@ -151,9 +152,27 @@ const COMMON: Record<string, Common> = {
   },
 };
 
-const common = (id: keyof typeof COMMON, group: string, allowNA = false): ScoredItem => ({
-  ...COMMON[id], kind: "score", group, allowNA,
+const common = (id: keyof typeof COMMON, group: string, allowNA = false, anchors?: string[]): ScoredItem => ({
+  ...COMMON[id], kind: "score", group, allowNA, anchors,
 });
+
+// ── 앵커: 전공·진로 소개 (2026-10-10 김재호, 양식 B) ──
+// 공통 루브릭 문장은 그대로 두고, 이 평가지에서 경계를 어떻게 긋는지 예시로 보태요.
+const mentorAnchors = {
+  structure: [
+    "전공·진로 소개는 학과에서 배우는 것과 진로가 중심이어야 해요. 개인 입시 경험, 학교생활 이야기 등 다른 주제가 수업의 중심을 차지하면 2점 이하.",
+  ],
+  explanation: [
+    "대학 과목 용어(예: 고체역학, 유체역학)를 대상 수준에 맞게 풀지 않고 이름만 나열하면 1~2점. 하나만 풀고 나머지는 이름만 말하면 2점.",
+    "4점 예: \"유체역학은 비행기가 왜 뜨는지, 물이 파이프에서 어떻게 흐르는지 배우는 과목이에요. 비행기가 어떻게 뜨는지 들어본 사람?\"처럼 대상에 맞는 일상 예시로 풀고 이해했는지 확인.",
+    "용어·설명 수준은 이 항목에서만 판단해요. '학생 파악과 맞춤'에서 같은 이유로 다시 깎지 않아요.",
+  ],
+  time: [
+    "계획 시간보다 3분 넘게 초과하면 2점 이하. 초과하면서 진로나 정리까지 못 하면 1점.",
+    "앞부분(학과 소개)에 시간을 다 쓰고 진로·정리를 서두르면 2점.",
+    "4점 예: 늦어지면 \"시간 관계상 이건 자료로 대신할게요\"처럼 덜 중요한 부분을 줄여 계획 시간 안에 끝냄.",
+  ],
+};
 
 // ── 특화 항목 ──
 // 전공 소개 특화 4개(학생 파악·실천 안내·균형·질문 응답)는 2026-10-10 김재호 검토로 채택(양식 A).
@@ -162,12 +181,13 @@ const studentFit: ScoredItem = {
   id: "student_fit", kind: "score", group: "전공 소개", title: "학생 파악과 맞춤",
   // 멘토는 대상을 미리 알고 들어가므로 "학년을 물었나"는 보지 않아요 (2026-10-10 김재호).
   // 대신 수업 등록 때 적은 대상(학년·사전지식)에 설명이 맞았는지를 봐요.
-  question: "수업 대상(학년·사전지식)과 학생 반응에 맞춰 용어·예시·강조점을 조절했는가?",
+  // 용어·설명 수준은 '설명의 적절성'에서 봐요. 여기서는 학생 반응·관심을 활용했는지만 봐요 (중복 감점 방지).
+  question: "학생의 반응과 관심에 맞춰 예시·강조점을 조절했는가? (용어·설명 수준은 '설명의 적절성'에서 봐요)",
   levels: [
-    "대상 수준을 고려하지 않고 준비한 내용만 전달 (어려운 용어를 풀지 않고 사용)",
-    "학생 관심을 묻거나 반응을 보지만 설명에 거의 반영하지 않음, 또는 대상에게 어려운 용어·예시를 일부 그대로 사용",
-    "대상 수준에 맞는 용어·예시를 쓰고, 학생 답을 설명에 반영",
-    "수업 중 반응을 확인하며 학생별 관심에 연결해 설명을 바꾸고, 어려운 개념은 이해했는지 확인",
+    "학생 관심·반응을 확인하지 않고 준비한 내용만 전달",
+    "학생 관심을 묻거나 반응을 보지만 설명에 거의 반영하지 않음",
+    "학생 답·관심을 설명이나 예시에 반영",
+    "수업 중 반응을 확인하며 학생별 관심에 연결해 설명을 바꿈",
   ],
   allowNA: true, // 학생 역할이 없는 혼자 연습이면 판단 불가
 };
@@ -199,6 +219,10 @@ const studentQuestions: ScoredItem = {
     "질문을 받지만 짧거나 동떨어진 답",
     "질문을 충분히 기다려 받고, 질문의 의도에 맞는 구체적인 답을 함",
     "답 후 이해했는지 확인하고, 모르는 것은 모른다고 하며 확인 방법을 안내",
+  ],
+  anchors: [
+    "질문이 없다고 그냥 끝내면 1점.",
+    "4점 예: 질문이 없으면 \"그럼 제가 고등학생 때 제일 궁금했던 걸 말해 볼게요. '수학 못하면 힘들어요?' 실제로는…\"처럼 학생이 궁금해할 예상 질문을 직접 꺼내 답함.",
   ],
   allowNA: true, // 학생 역할이 없는 혼자 연습이면 판단 불가
 };
@@ -267,8 +291,11 @@ export const templates: Template[] = [
     description: "멘토가 선배들 앞에서 전공 소개 수업을 시연할 때",
     // 전공 소개는 발표(강의)형이라 "학생 중심성"은 적용하지 않아요. (공통 루브릭 4-2: 유형별 N/A)
     items: [
-      common("structure", 실행), common("explanation", 실행), common("question", 실행),
-      common("nonverbal", 실행, true), common("time", 실행),
+      common("structure", 실행, false, mentorAnchors.structure),
+      common("explanation", 실행, false, mentorAnchors.explanation),
+      common("question", 실행),
+      common("nonverbal", 실행, true),
+      common("time", 실행, false, mentorAnchors.time),
       majorAccuracy, material, studentFit, careerAction, balance, studentQuestions,
       text("comment_material", "발표 자료(PPT)에 대한 의견",
         "예: 3번 슬라이드 글자가 너무 많아요. 커리큘럼 표는 그림으로 바꾸면 좋겠어요."),
