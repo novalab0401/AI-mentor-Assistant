@@ -94,8 +94,8 @@ export default function FeedbackView() {
         <p className="text-sm text-muted-foreground">아직 들어온 평가가 없어요.</p>
       )}
 
-      {/* ── 점수 항목 ── */}
-      {groupsOf(scoredOf(items)).map((group) => (
+      {/* ── 점수 항목 (평가가 하나라도 있을 때만) ── */}
+      {evaluatorCount > 0 && groupsOf(scoredOf(items)).map((group) => (
         <section key={group} className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground">{group}</h2>
           {scoredOf(items)
