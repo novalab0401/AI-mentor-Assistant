@@ -69,10 +69,10 @@ export default function GroupsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {g.my_status === "active" ? (
+            {g.my_status === "active" || perm?.is_platform_admin ? (
               <Link href={`/groups/${g.id}`}
                 className="block rounded-lg border py-1.5 text-center text-sm">
-                들어가기 ({roleLabels[g.my_role!]})
+                들어가기 ({g.my_role ? roleLabels[g.my_role] : "Nova Lab 관리자"})
               </Link>
             ) : g.my_status === "pending" ? (
               <p className="text-center text-sm text-muted-foreground">승인 대기 중이에요</p>

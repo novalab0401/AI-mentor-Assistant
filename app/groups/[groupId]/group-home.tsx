@@ -11,10 +11,13 @@ import SessionList from "@/components/session-list";
 import TeamTab, { type Team } from "@/components/team-tab";
 import { supabase } from "@/lib/supabase";
 import { useOperator } from "@/lib/use-operator";
-import { roleLabels, roles, type Role } from "@/lib/roles";
+import { roleHelp, roleLabels, roles, type Role } from "@/lib/roles";
 import { usePermissions } from "@/lib/use-permissions";
 
-type Group = { id: string; name: string; description: string | null };
+type Group = {
+  id: string; name: string; description: string | null; created_by: string | null;
+  deletion_requested_at: string | null; deletion_reason: string | null;
+};
 type Member = {
   user_id: string;
   role: Role;
@@ -37,12 +40,14 @@ export default function GroupHome() {
   const [tab, setTab] = useState<"sessions" | "teams" | "members">("sessions");
   const [teams, setTeams] = useState<Team[]>([]);
   const [editing, setEditing] = useState<{ name: string; description: string } | null>(null);
+  const [invite, setInvite] = useState<{ email: string; role: Role }>({ email: "", role: "trainee" });
+  const [deleteReason, setDeleteReason] = useState("");
 
   useEffect(() => {
     if (!user) return;
     supabase
       .from("groups")
-      .select("id, name, description")
+      .select("id, name, description, created_by, deletion_requested_at, deletion_reason")
       .eq("id", groupId)
       .maybeSingle()
       .then(({ data }) => setGroup(data ?? null));
@@ -119,6 +124,26 @@ export default function GroupHome() {
       () => setEditing(null)
     );
 
+  const inviteMember = async () => {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("group_invite", {
+      p_group: groupId, p_email: invite.email, p_role: invite.role,
+    });
+    setBusy(false);
+    if (error) return alert(error.message);
+    alert(`${data} 님을 ${roleLabels[invite.role]}(으)로 추가했어요.`);
+    setInvite({ email: "", role: "trainee" });
+    reload();
+  };
+
+  const requestDeletion = () =>
+    confirm("Nova Lab에 그룹 삭제를 요청할까요? 승인되기 전까지 그룹은 그대로 쓸 수 있어요.") &&
+    run(supabase.rpc("request_group_deletion", { p_group: groupId, p_reason: deleteReason }),
+      () => setDeleteReason(""));
+
+  const cancelDeletion = () =>
+    run(supabase.rpc("cancel_group_deletion", { p_group: groupId }));
+
   const deleteGroup = () => {
     if (!confirm(`"${group?.name}" 그룹을 삭제할까요? 모든 수업 기록과 평가가 함께 지워지고 되돌릴 수 없어요.`)) return;
     run(supabase.from("groups").delete().eq("id", groupId), () => router.push("/"));
@@ -128,8 +153,11 @@ export default function GroupHome() {
   if (!user || group === undefined || me === undefined) return <main className="p-4">불러오는 중...</main>;
   if (group === null) return <main className="p-4">존재하지 않는 그룹이에요.</main>;
 
-  const isActive = me?.status === "active";
-  const isAdmin = isActive && me?.role === "admin";
+  // Nova Lab 관리자는 모든 그룹에서 운영진 권한이 있어요 (멤버가 아니어도)
+  const isPlatform = !!perm?.is_platform_admin;
+  const isActive = me?.status === "active" || isPlatform;
+  const isAdmin = (me?.status === "active" && me.role === "admin") || isPlatform;
+  const ownerId = group.created_by;
   const active = members.filter((m) => m.status === "active");
   const pending = members.filter((m) => m.status === "pending");
   // 내가 팀장인 팀 (그 팀의 수업은 내가 등록·관리할 수 있어요)
@@ -170,10 +198,26 @@ export default function GroupHome() {
                     그룹 삭제
                   </Button>
                 </>
+              ) : group.deletion_requested_at ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    삭제 요청을 보냈어요 ({group.deletion_requested_at.slice(0, 10)}). Nova Lab이 확인 후 처리해요.
+                  </p>
+                  <Button variant="outline" className="w-full" disabled={busy} onClick={cancelDeletion}>
+                    삭제 요청 취소
+                  </Button>
+                </>
               ) : (
-                <p className="text-xs text-muted-foreground">
-                  그룹 삭제는 Nova Lab에 요청해 주세요.
-                </p>
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    그룹 삭제는 Nova Lab 승인이 필요해요. 요청을 보내면 Nova Lab이 확인 후 처리해요.
+                  </p>
+                  <Input placeholder="삭제하려는 이유 (선택)" value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)} />
+                  <Button variant="destructive" className="w-full" disabled={busy} onClick={requestDeletion}>
+                    Nova Lab에 삭제 요청
+                  </Button>
+                </>
               )}
             </div>
           </CardContent>
@@ -185,11 +229,16 @@ export default function GroupHome() {
             {group.description && <p className="text-sm text-muted-foreground">{group.description}</p>}
             {isActive && (
               <p className="text-sm text-muted-foreground">
-                내 역할: {roleLabels[me!.role]} · 멤버 {active.length}명
+                내 역할: {me?.status === "active"
+                  ? (me.user_id === ownerId ? "그룹장" : roleLabels[me.role])
+                  : "Nova Lab 관리자"} · 멤버 {active.length}명
               </p>
             )}
+            {isAdmin && group.deletion_requested_at && (
+              <p className="text-xs text-destructive">Nova Lab에 삭제 요청 중</p>
+            )}
           </div>
-          {(isAdmin || perm?.is_platform_admin) && (
+          {isAdmin && (
             <Button size="sm" variant="outline"
               onClick={() => setEditing({ name: group.name, description: group.description ?? "" })}>
               그룹 설정
@@ -199,7 +248,7 @@ export default function GroupHome() {
       )}
 
       {/* ── 아직 멤버가 아닐 때 ── */}
-      {!me && (
+      {!me && !isPlatform && (
         <Card>
           <CardContent className="space-y-3 pt-6 text-sm">
             <p>이 그룹의 멤버가 아니에요. 가입을 신청하면 운영진이 승인한 뒤 들어올 수 있어요.</p>
@@ -275,8 +324,16 @@ export default function GroupHome() {
                   <CardTitle>멤버</CardTitle>
                   {isAdmin && (
                     <CardDescription>
-                      역할을 바꾸거나 다른 사람을 운영진으로 지정(위임)할 수 있어요.
+                      역할을 바꾸거나 다른 사람을 운영진으로 지정(위임)할 수 있어요. 그룹장은 Nova Lab에서만 바꿀 수 있어요.
                     </CardDescription>
+                  )}
+                  {isAdmin && (
+                    <details className="text-xs text-muted-foreground">
+                      <summary className="cursor-pointer">역할별로 할 수 있는 것</summary>
+                      <ul className="mt-1 space-y-0.5">
+                        {roles.map((r) => <li key={r}><b>{roleLabels[r]}</b>: {roleHelp[r]}</li>)}
+                      </ul>
+                    </details>
                   )}
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -284,9 +341,12 @@ export default function GroupHome() {
                     <div key={m.user_id} className="flex items-center justify-between gap-2 text-sm">
                       <span>
                         {m.profiles?.display_name ?? "(이름 없음)"}
+                        {m.user_id === ownerId && <span className="text-xs text-primary"> 그룹장</span>}
                         {m.user_id === user!.id && <span className="text-muted-foreground"> (나)</span>}
                       </span>
-                      {isAdmin ? (
+                      {m.user_id === ownerId && !isPlatform ? (
+                        <span className="text-muted-foreground">{roleLabels[m.role]}</span>
+                      ) : isAdmin ? (
                         <span className="flex items-center gap-1">
                           <select
                             className="rounded-md border bg-background px-2 py-1 text-sm"
@@ -309,9 +369,33 @@ export default function GroupHome() {
                 </CardContent>
               </Card>
 
-              <Button variant="outline" className="w-full" disabled={busy} onClick={() => cancelOrLeave(true)}>
-                그룹 나가기
-              </Button>
+              {isAdmin && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>초대하기</CardTitle>
+                    <CardDescription>
+                      이 사이트에 가입한 사람을 이메일로 바로 추가해요. 운영진으로 넣으면 승인·초대·팀 관리를 함께 맡길 수 있어요.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Input type="email" placeholder="가입한 이메일" value={invite.email}
+                      onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
+                    <div className="flex gap-2">
+                      <select className="flex-1 rounded-md border bg-background px-2 py-1.5 text-sm"
+                        value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value as Role })}>
+                        {roles.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+                      </select>
+                      <Button disabled={busy || invite.email.trim() === ""} onClick={inviteMember}>추가</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {me?.status === "active" && me.user_id !== ownerId && (
+                <Button variant="outline" className="w-full" disabled={busy} onClick={() => cancelOrLeave(true)}>
+                  그룹 나가기
+                </Button>
+              )}
             </section>
           )}
         </>
