@@ -124,7 +124,8 @@ export default function GroupHome() {
     run(supabase.from("groups").delete().eq("id", groupId), () => router.push("/"));
   };
 
-  if (group === undefined || me === undefined) return <main className="p-4">불러오는 중...</main>;
+  // 로그인 확인 중이거나 로그아웃 직후에는 user가 비어 있어요. 그때는 아무것도 그리지 않아요.
+  if (!user || group === undefined || me === undefined) return <main className="p-4">불러오는 중...</main>;
   if (group === null) return <main className="p-4">존재하지 않는 그룹이에요.</main>;
 
   const isActive = me?.status === "active";
