@@ -26,7 +26,7 @@ type GroupPerson = { user_id: string; name: string };
 // - 팀장: 자기 팀의 신청 승인, 팀원 추가·내보내기, 팀장 지정
 // - 멤버: 팀 가입 신청, 팀 나가기
 export default function TeamTab({
-  groupId, teams, people, userId, isAdmin, onChange,
+  groupId, teams, people, userId, isAdmin, onChange, onOpenSessions,
 }: {
   groupId: string;
   teams: Team[];
@@ -34,6 +34,7 @@ export default function TeamTab({
   userId: string;
   isAdmin: boolean;
   onChange: () => void;
+  onOpenSessions: (teamId: string) => void; // 수업 탭으로 이동해 이 팀 수업만 보기
 }) {
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState<{ name: string; description: string } | null>(null);
@@ -125,6 +126,10 @@ export default function TeamTab({
             {expanded && (
               <CardContent className="space-y-4 text-sm">
                 {t.description && <p className="text-muted-foreground">{t.description}</p>}
+
+                <Button variant="outline" className="w-full" onClick={() => onOpenSessions(t.id)}>
+                  이 팀의 수업(시연) 보기 →
+                </Button>
 
                 {/* 팀 신청 승인 */}
                 {canManage && pending.length > 0 && (

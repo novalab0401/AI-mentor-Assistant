@@ -37,7 +37,8 @@ export default function GroupHome() {
   const [me, setMe] = useState<Member | null | undefined>(undefined);
   const [reloadKey, setReloadKey] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"sessions" | "teams" | "members">("sessions");
+  const [tab, setTab] = useState<"teams" | "sessions" | "members">("teams");
+  const [sessionTeam, setSessionTeam] = useState("all");
   const [teams, setTeams] = useState<Team[]>([]);
   const [editing, setEditing] = useState<{ name: string; description: string } | null>(null);
   const [invite, setInvite] = useState<{ email: string; role: Role }>({ email: "", role: "trainee" });
@@ -277,17 +278,25 @@ export default function GroupHome() {
           )}
 
           <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1 text-sm">
-            {(["sessions", "teams", "members"] as const).map((t) => (
+            {(["teams", "sessions", "members"] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)}
                 className={`rounded-md py-1.5 ${tab === t ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}>
-                {t === "sessions" ? "수업(시연)" : t === "teams" ? `팀 ${teams.length}` : `멤버 ${active.length}`}
+                {t === "teams" ? `팀 ${teams.length}` : t === "sessions" ? "수업(시연)" : `멤버 ${active.length}`}
               </button>
             ))}
           </div>
 
           {tab === "sessions" && (
-            <SessionList groupId={groupId} isAdmin={isAdmin} leaderTeamIds={leaderTeamIds}
-              teams={teams.map((t) => ({ id: t.id, name: t.name }))} />
+            <>
+              {teams.length === 0 && (
+                <p className="rounded-md bg-muted p-3 text-sm">
+                  수업은 보통 팀 안에서 열려요. {isAdmin ? "먼저 팀 탭에서 팀을 만들어 주세요." : "운영진이 팀을 만들면 팀별로 볼 수 있어요."}
+                </p>
+              )}
+              <SessionList groupId={groupId} isAdmin={isAdmin} leaderTeamIds={leaderTeamIds}
+                teams={teams.map((t) => ({ id: t.id, name: t.name }))}
+                teamFilter={sessionTeam} onTeamFilter={setSessionTeam} />
+            </>
           )}
 
           {tab === "teams" && (
@@ -298,6 +307,7 @@ export default function GroupHome() {
               userId={user!.id}
               isAdmin={isAdmin}
               onChange={reload}
+              onOpenSessions={(teamId) => { setSessionTeam(teamId); setTab("sessions"); }}
             />
           )}
 

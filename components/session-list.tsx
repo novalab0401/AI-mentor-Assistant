@@ -29,14 +29,16 @@ type Draft = { id: string; mentorName: string; major: string; rubricType: string
 // 그룹 안의 수업(시연) 목록.
 // 목록은 그룹 멤버 모두에게 보이고, 결과·수정·삭제는 그룹 운영진과 그 팀의 팀장만 할 수 있어요.
 export default function SessionList({
-  groupId, isAdmin, leaderTeamIds, teams,
+  groupId, isAdmin, leaderTeamIds, teams, teamFilter, onTeamFilter,
 }: {
   groupId: string;
   isAdmin: boolean;
   leaderTeamIds: string[];
   teams: TeamOption[];
+  teamFilter: string; // "all" 또는 팀 id
+  onTeamFilter: (id: string) => void;
 }) {
-  const [teamFilter, setTeamFilter] = useState<string | "all">("all");
+  const setTeamFilter = onTeamFilter;
   const [rows, setRows] = useState<Row[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
