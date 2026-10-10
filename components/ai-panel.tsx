@@ -168,6 +168,8 @@ export default function AiPanel({
     .map((i) => ({ h: human[i.id]?.avg ?? null, a: scoreOf(i.id)?.score ?? null }))
     .filter((p): p is { h: number; a: number } => p.h !== null && p.a !== null);
   const hasHuman = Object.values(human).some((h) => h.avg !== null);
+  const aiScored = items.map((i) => scoreOf(i.id)?.score).filter((v): v is number => v != null);
+  const aiAvg = aiScored.length > 0 ? aiScored.reduce((a, b) => a + b, 0) / aiScored.length : 0;
   const exact = pairs.filter((p) => Math.abs(p.a - p.h) < 0.5).length;
   const within1 = pairs.filter((p) => Math.abs(p.a - p.h) <= 1).length;
 
@@ -268,6 +270,16 @@ export default function AiPanel({
           <div className="space-y-3">
             <p className="font-medium">3. AI 채점 결과{hasHuman && " · 사람 평가와 비교"}</p>
 
+            {aiScored.length > 0 && (
+              <p className="rounded-md border border-primary/40 px-3 py-2">
+                AI 평균 <b className="text-lg">{aiAvg.toFixed(1)}</b> / 4
+                <span className="text-xs text-muted-foreground">
+                  {" "}· 채점 {aiScored.length}개 항목
+                  {items.length - aiScored.length > 0 && ` (판단 불가 ${items.length - aiScored.length}개는 평균에서 제외)`}
+                </span>
+              </p>
+            )}
+
             {pairs.length > 0 && (
               <p className="rounded-md bg-muted px-3 py-2">
                 비교 가능한 {pairs.length}개 항목 중 <b>거의 같음 {exact}개</b> (차이 0.5 미만),{" "}
@@ -290,7 +302,9 @@ export default function AiPanel({
                         {hasHuman && (
                           <span className="text-muted-foreground">사람 {h?.avg != null ? h.avg.toFixed(1) : "-"}</span>
                         )}
-                        <span className="font-semibold">AI {s ? (s.score ?? "판단 불가") : "-"}</span>
+                        <span className="font-semibold">
+                          AI {s ? (s.score != null ? `${s.score} / 4` : "판단 불가") : "-"}
+                        </span>
                         {diff !== null && Math.abs(diff) > 1 && (
                           <span className="rounded bg-destructive/15 px-1 text-destructive">차이 큼</span>
                         )}
@@ -299,6 +313,11 @@ export default function AiPanel({
                     </button>
                     {expanded && s && (
                       <div className="mt-2 space-y-2 text-xs">
+                        {s.score != null && (
+                          <p className="rounded bg-primary/10 px-2 py-1">
+                            <b>{s.score}점 기준:</b> {item.levels[s.score - 1]}
+                          </p>
+                        )}
                         {s.rationale && <p>{s.rationale}</p>}
                         {s.evidence.length > 0 && (
                           <ul className="space-y-1">

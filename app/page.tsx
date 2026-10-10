@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { useOperator } from "@/lib/use-operator";
 import { useConsentGuard } from "@/lib/use-consent";
@@ -13,7 +13,8 @@ import { getTemplate } from "@/lib/rubric";
 type MyFeedback = {
   session_id: string; session_no: number; session_date: string; mentor_name: string; major: string | null;
   rubric_type: string; group_name: string; team_name: string | null;
-  feedback_open: boolean; feedback_token: string | null; evaluator_count: number;
+  feedback_open: boolean; ai_open: boolean; feedback_token: string | null; evaluator_count: number;
+  ai_run_count: number;
 };
 
 type MyGroup = {
@@ -109,34 +110,40 @@ export default function Home() {
       {feedback.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground">
-            내가 받은 평가 {feedback.filter((f) => f.feedback_open).length > 0 &&
-              <span className="text-primary">· 확인 가능 {feedback.filter((f) => f.feedback_open).length}건</span>}
+            내가 받은 평가 {feedback.filter((f) => f.feedback_open || f.ai_open).length > 0 &&
+              <span className="text-primary">· 확인 가능 {feedback.filter((f) => f.feedback_open || f.ai_open).length}건</span>}
           </h2>
-          {feedback.map((f) => {
-            const body = (
-              <>
-                <CardHeader>
-                  <CardDescription>
-                    {f.session_date} · {f.group_name}{f.team_name && ` · ${f.team_name}`}
-                  </CardDescription>
-                  <CardTitle>
-                    시연 #{f.session_no}{f.major && <span className="font-normal"> · {f.major}</span>}
-                  </CardTitle>
-                  <CardDescription>
-                    {getTemplate(f.rubric_type).name} · 평가자 {f.evaluator_count}명 ·{" "}
-                    {f.feedback_open ? <b className="text-primary">결과 보기 →</b> : "운영진이 공개하면 볼 수 있어요"}
-                  </CardDescription>
-                </CardHeader>
-              </>
-            );
-            return f.feedback_open && f.feedback_token ? (
-              <Link key={f.session_id} href={`/feedback/${f.feedback_token}`} className="block">
-                <Card className="border-primary/40 transition-colors hover:bg-muted">{body}</Card>
-              </Link>
-            ) : (
-              <Card key={f.session_id} className="opacity-70">{body}</Card>
-            );
-          })}
+          {feedback.map((f) => (
+            <Card key={f.session_id} className={f.feedback_open || f.ai_open ? "border-primary/40" : ""}>
+              <CardHeader>
+                <CardDescription>
+                  {f.session_date} · {f.group_name}{f.team_name && ` · ${f.team_name}`}
+                </CardDescription>
+                <CardTitle>
+                  시연 #{f.session_no}{f.major && <span className="font-normal"> · {f.major}</span>}
+                </CardTitle>
+                <CardDescription>
+                  {getTemplate(f.rubric_type).name}
+                  {" · "}사람 평가 {f.feedback_open ? `공개 (${f.evaluator_count}명)` : "공개 전"}
+                  {" · "}AI {f.ai_open ? "공개" : f.ai_run_count > 0 ? "채점됨" : "없음"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-2">
+                {f.feedback_token ? (
+                  <Link href={`/feedback/${f.feedback_token}`}
+                    className="rounded-lg bg-primary py-1.5 text-center text-sm font-medium text-primary-foreground">
+                    결과 보기
+                  </Link>
+                ) : (
+                  <span className="rounded-lg border py-1.5 text-center text-sm text-muted-foreground">공개 전</span>
+                )}
+                <Link href={`/sessions/${f.session_id}/ai`}
+                  className="rounded-lg border border-primary/60 py-1.5 text-center text-sm font-medium">
+                  AI로 연습하기
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
         </section>
       )}
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -293,9 +294,15 @@ export default function GroupHome() {
                   수업은 보통 팀 안에서 열려요. {isAdmin ? "먼저 팀 탭에서 팀을 만들어 주세요." : "운영진이 팀을 만들면 팀별로 볼 수 있어요."}
                 </p>
               )}
+              {me?.status === "active" && (
+                <Link href={`/groups/${groupId}/practice`}
+                  className="block rounded-md border border-dashed border-primary/60 py-2 text-center text-sm">
+                  + 내 수업 AI로 연습하기
+                </Link>
+              )}
               <SessionList groupId={groupId} isAdmin={isAdmin} leaderTeamIds={leaderTeamIds}
                 teams={teams.map((t) => ({ id: t.id, name: t.name }))}
-                teamFilter={sessionTeam} onTeamFilter={setSessionTeam} />
+                teamFilter={sessionTeam} onTeamFilter={setSessionTeam} userId={user!.id} />
             </>
           )}
 

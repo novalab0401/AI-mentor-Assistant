@@ -35,7 +35,8 @@ export async function POST(request: Request) {
   const { sessionId } = (await request.json().catch(() => ({}))) as { sessionId?: string };
   if (!sessionId) return fail(400, "수업 번호가 없어요.");
 
-  const { data: allowed } = await sb.rpc("can_manage_session", { sid: sessionId });
+  // 관리하는 사람(운영진·팀장·Nova Lab) 또는 평가받는 본인
+  const { data: allowed } = await sb.rpc("can_ai_session", { sid: sessionId });
   if (allowed !== true) return fail(403, "이 수업을 AI로 채점할 권한이 없어요.");
 
   // 2) 수업 정보와 가장 최근 전사문

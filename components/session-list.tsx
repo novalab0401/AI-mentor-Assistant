@@ -17,6 +17,7 @@ type Row = {
   session_date: string;
   rubric_type: string;
   team_id: string | null;
+  presenter_id: string | null;
   teams: { name: string } | null;
   evaluations: { evaluator_name: string }[];
 };
@@ -29,7 +30,7 @@ type Draft = { id: string; mentorName: string; major: string; rubricType: string
 // 그룹 안의 수업(시연) 목록.
 // 목록은 그룹 멤버 모두에게 보이고, 결과·수정·삭제는 그룹 운영진과 그 팀의 팀장만 할 수 있어요.
 export default function SessionList({
-  groupId, isAdmin, leaderTeamIds, teams, teamFilter, onTeamFilter,
+  groupId, isAdmin, leaderTeamIds, teams, teamFilter, onTeamFilter, userId,
 }: {
   groupId: string;
   isAdmin: boolean;
@@ -37,6 +38,7 @@ export default function SessionList({
   teams: TeamOption[];
   teamFilter: string; // "all" 또는 팀 id
   onTeamFilter: (id: string) => void;
+  userId: string;
 }) {
   const setTeamFilter = onTeamFilter;
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -47,7 +49,7 @@ export default function SessionList({
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("id, session_no, mentor_name, major, session_date, rubric_type, team_id, teams(name), evaluations(evaluator_name)")
+      .select("id, session_no, mentor_name, major, session_date, rubric_type, team_id, presenter_id, teams(name), evaluations(evaluator_name)")
       .eq("group_id", groupId)
       .order("session_no", { ascending: false })
       .then(({ data, error }) => {
@@ -178,11 +180,18 @@ export default function SessionList({
               </CardDescription>
             </CardHeader>
             {!canManage ? (
-              <CardContent>
+              <CardContent className={s.presenter_id === userId ? "grid grid-cols-2 gap-2" : ""}>
                 <Link href={`/evaluate/${s.id}`}
                   className="block rounded-lg bg-primary py-1.5 text-center text-sm font-medium text-primary-foreground">
                   평가하기
                 </Link>
+                {/* 내가 평가받는 수업이면 AI로 직접 연습할 수 있어요 */}
+                {s.presenter_id === userId && (
+                  <Link href={`/sessions/${s.id}/ai`}
+                    className="block rounded-lg border border-primary/60 py-1.5 text-center text-sm font-medium">
+                    내 AI 평가
+                  </Link>
+                )}
               </CardContent>
             ) : (
             <CardContent className="grid grid-cols-2 gap-2">
