@@ -41,3 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 /.backup
+
+# 공개 영상 전사문: 내부 테스트용, 저작권 때문에 git에 올리지 않음
+docs/공개영상-테스트/
