@@ -1,0 +1,251 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/lib/supabase";
+import type { ScoredItem } from "@/lib/rubric";
+
+type Transcript = { id: number; content: string; source: string; created_at: string };
+type Run = {
+  id: number; created_at: string; model: string; prompt_version: string;
+  summary: { strengths: string[]; improvements: string[] } | null;
+  usage: { input_tokens?: number; output_tokens?: number } | null;
+};
+type AiScore = {
+  item_id: string; score: number | null;
+  evidence: { quote: string; verified: boolean }[];
+  rationale: string | null; next_action: string | null;
+};
+export type HumanStat = { avg: number | null; n: number };
+
+// 결과 화면의 AI 채점 영역 (운영진·팀장만 보여요)
+export default function AiPanel({
+  sessionId, items, human,
+}: {
+  sessionId: string;
+  items: ScoredItem[];
+  human: Record<string, HumanStat>;
+}) {
+  const [transcript, setTranscript] = useState<Transcript | null | undefined>(undefined);
+  const [draft, setDraft] = useState<string | null>(null); // 전사문 편집 중
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [runId, setRunId] = useState<number | null>(null);
+  const [scores, setScores] = useState<AiScore[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [open, setOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("transcripts").select("id, content, source, created_at")
+      .eq("session_id", sessionId).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => setTranscript(data ?? null));
+    supabase
+      .from("ai_runs").select("id, created_at, model, prompt_version, summary, usage")
+      .eq("session_id", sessionId).order("created_at", { ascending: false })
+      .then(({ data }) => {
+        const list = (data as Run[]) ?? [];
+        setRuns(list);
+        setRunId((cur) => cur ?? list[0]?.id ?? null);
+      });
+  }, [sessionId, reloadKey]);
+
+  useEffect(() => {
+    if (runId === null) return;
+    supabase
+      .from("ai_scores").select("item_id, score, evidence, rationale, next_action")
+      .eq("run_id", runId)
+      .then(({ data }) => setScores((data as AiScore[]) ?? []));
+  }, [runId]);
+
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(t);
+  }, [running]);
+
+  async function saveTranscript() {
+    if (!draft?.trim()) return;
+    setBusy(true);
+    const { error } = await supabase.from("transcripts").insert({ session_id: sessionId, content: draft.trim() });
+    setBusy(false);
+    if (error) return alert("저장 실패: " + error.message);
+    setDraft(null);
+    setReloadKey((k) => k + 1);
+  }
+
+  async function runAi() {
+    setRunning(true);
+    setElapsed(0);
+    const { data } = await supabase.auth.getSession();
+    const res = await fetch("/api/ai-score", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${data.session?.access_token ?? ""}`,
+      },
+      body: JSON.stringify({ sessionId }),
+    });
+    const body = await res.json().catch(() => ({}));
+    setRunning(false);
+    if (!res.ok) return alert(body.error ?? "AI 채점 실패");
+    setRunId(body.runId);
+    setReloadKey((k) => k + 1);
+  }
+
+  const run = runs.find((r) => r.id === runId) ?? null;
+  const scoreOf = (id: string) => scores.find((s) => s.item_id === id);
+
+  // 사람-AI 일치도: 둘 다 점수가 있는 항목만
+  const pairs = items
+    .map((i) => ({ h: human[i.id]?.avg ?? null, a: scoreOf(i.id)?.score ?? null }))
+    .filter((p): p is { h: number; a: number } => p.h !== null && p.a !== null);
+  const exact = pairs.filter((p) => Math.abs(p.a - p.h) < 0.5).length;
+  const within1 = pairs.filter((p) => Math.abs(p.a - p.h) <= 1).length;
+
+  return (
+    <Card className="border-primary/40">
+      <CardHeader>
+        <CardTitle>AI 채점 (운영진·팀장 전용)</CardTitle>
+        <CardDescription>
+          전사문을 바탕으로 AI가 같은 평가지로 채점해요. 사람 점수와 비교해 일치하는 항목만 나중에 공식 지표로 써요.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        {/* ── 1. 전사문 ── */}
+        <div className="space-y-2">
+          <p className="font-medium">1. 전사문</p>
+          {transcript === undefined && <p className="text-muted-foreground">불러오는 중...</p>}
+          {draft === null ? (
+            <>
+              {transcript ? (
+                <p className="text-muted-foreground">
+                  저장됨 · {transcript.content.length.toLocaleString()}자 · {transcript.created_at.slice(0, 16).replace("T", " ")}
+                </p>
+              ) : transcript === null ? (
+                <p className="text-muted-foreground">
+                  아직 전사문이 없어요. 수업 녹음을 클로바노트 같은 받아쓰기 앱으로 글로 옮긴 뒤 붙여 넣어 주세요.
+                  (시간 표시·화자 표시가 있어도 괜찮아요)
+                </p>
+              ) : null}
+              <Button size="sm" variant="outline" onClick={() => setDraft(transcript?.content ?? "")}>
+                {transcript ? "전사문 새로 넣기" : "전사문 붙여넣기"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Textarea className="min-h-48 font-mono text-xs" value={draft}
+                placeholder={"예)\n[00:12] 멘토: 안녕하세요, 오늘은 기계공학과를 소개할게요.\n[00:20] 학생: ..."}
+                onChange={(e) => setDraft(e.target.value)} />
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={() => setDraft(null)}>취소</Button>
+                <Button disabled={busy || !draft.trim()} onClick={saveTranscript}>저장</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                새로 저장해도 이전 전사문은 기록으로 남아요. AI 채점은 가장 최근 전사문으로 해요.
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* ── 2. 실행 ── */}
+        <div className="space-y-2">
+          <p className="font-medium">2. AI 채점</p>
+          <Button className="w-full" disabled={!transcript || running || draft !== null} onClick={runAi}>
+            {running ? `채점 중... ${elapsed}초 (1~2분 걸려요)` : runs.length > 0 ? "다시 채점하기" : "AI 채점 실행"}
+          </Button>
+          {runs.length > 1 && (
+            <select className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
+              value={runId ?? ""} onChange={(e) => setRunId(Number(e.target.value))}>
+              {runs.map((r, i) => (
+                <option key={r.id} value={r.id}>
+                  {i === 0 ? "최근 · " : ""}{r.created_at.slice(0, 16).replace("T", " ")} · {r.model} · {r.prompt_version}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* ── 3. 결과 ── */}
+        {run && (
+          <div className="space-y-3">
+            <p className="font-medium">3. 사람 vs AI</p>
+
+            {pairs.length > 0 ? (
+              <p className="rounded-md bg-muted px-3 py-2">
+                비교 가능한 {pairs.length}개 항목 중 <b>거의 같음 {exact}개</b> (차이 0.5 미만),{" "}
+                <b>1점 이내 {within1}개</b>
+              </p>
+            ) : (
+              <p className="text-muted-foreground">사람 평가가 들어오면 항목별로 비교해 보여 줘요.</p>
+            )}
+
+            <div className="divide-y rounded-md border">
+              {items.map((item) => {
+                const s = scoreOf(item.id);
+                const h = human[item.id];
+                const diff = s?.score != null && h?.avg != null ? s.score - h.avg : null;
+                const expanded = open === item.id;
+                return (
+                  <div key={item.id} className="p-2">
+                    <button className="flex w-full items-center justify-between gap-2 text-left"
+                      onClick={() => setOpen(expanded ? null : item.id)}>
+                      <span>{item.title}</span>
+                      <span className="flex shrink-0 items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">사람 {h?.avg != null ? h.avg.toFixed(1) : "-"}</span>
+                        <span className="font-semibold">AI {s ? (s.score ?? "판단 불가") : "-"}</span>
+                        {diff !== null && Math.abs(diff) > 1 && (
+                          <span className="rounded bg-destructive/15 px-1 text-destructive">차이 큼</span>
+                        )}
+                        <span className="text-muted-foreground">{expanded ? "▲" : "▼"}</span>
+                      </span>
+                    </button>
+                    {expanded && s && (
+                      <div className="mt-2 space-y-2 text-xs">
+                        {s.rationale && <p>{s.rationale}</p>}
+                        {s.evidence.length > 0 && (
+                          <ul className="space-y-1">
+                            {s.evidence.map((e, i) => (
+                              <li key={i} className="rounded bg-muted px-2 py-1">
+                                {e.verified ? "✓ " : "⚠ 전사문에서 못 찾음 · "}“{e.quote}”
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {s.next_action && <p><b>다음 행동:</b> {s.next_action}</p>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {run.summary && (
+              <div className="grid gap-2">
+                <div className="rounded-md bg-muted px-3 py-2">
+                  <p className="font-medium">AI가 본 잘한 점</p>
+                  <ul className="ml-4 list-disc">{run.summary.strengths.map((t, i) => <li key={i}>{t}</li>)}</ul>
+                </div>
+                <div className="rounded-md bg-muted px-3 py-2">
+                  <p className="font-medium">AI가 본 개선할 점</p>
+                  <ul className="ml-4 list-disc">{run.summary.improvements.map((t, i) => <li key={i}>{t}</li>)}</ul>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground">
+              {run.model} · 프롬프트 {run.prompt_version}
+              {run.usage?.input_tokens != null &&
+                ` · 토큰 입력 ${run.usage.input_tokens.toLocaleString()} / 출력 ${(run.usage.output_tokens ?? 0).toLocaleString()}`}
+              {" · "}⚠ 표시된 인용은 AI가 전사문에 없는 말을 만들었을 수 있어요. 그 항목 점수는 믿지 마세요.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

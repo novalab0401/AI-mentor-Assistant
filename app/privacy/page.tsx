@@ -19,6 +19,7 @@ export default function PrivacyPage() {
             <tr><td>회원가입 (필수)</td><td>이름, 이메일, 비밀번호(암호화 저장)</td><td>회원 식별, 로그인, 공지</td></tr>
             <tr><td>그룹 활동 (필수)</td><td>소속 그룹·팀, 역할, 가입·승인 기록</td><td>그룹·팀 운영과 권한 관리</td></tr>
             <tr><td>평가 (필수)</td><td>평가자 이름, 평가받는 사람 이름, 점수, 근거 메모, 서술형 의견, 작성 일시</td><td>수업 평가, 평가 결과와 피드백 제공, AI 채점, 평가 기준 개선</td></tr>
+            <tr><td>AI 채점 (필수)</td><td>수업 녹음을 글로 옮긴 전사문(발화 내용), AI 채점 결과</td><td>AI 채점·피드백, 사람 평가와의 비교, 평가 기준 개선</td></tr>
             <tr><td>자동 수집</td><td>접속 일시, 접속 기록</td><td>보안, 장애 대응</td></tr>
           </tbody>
         </table>
@@ -63,10 +64,13 @@ export default function PrivacyPage() {
           <tbody>
             <tr><td>Supabase Inc.</td><td>데이터베이스, 회원 인증</td><td>대한민국(서울) 리전</td></tr>
             <tr><td>Vercel Inc.</td><td>웹사이트 호스팅</td><td>미국 등</td></tr>
+            <tr><td>Anthropic PBC</td><td>전사문의 AI 채점 (Claude API)</td><td>미국</td></tr>
           </tbody>
         </table>
         <p className="mt-1 text-xs text-muted-foreground">
-          수업 녹음의 AI 분석 등 새로운 위탁이나 국외 이전이 생기면 시행 전에 이 방침을 고치고 다시 동의를 받습니다.
+          AI 채점을 위해 전사문은 채점할 때마다 인터넷을 통해 미국의 Anthropic PBC로 전송되고, 채점 결과를 받은 뒤
+          회사의 데이터베이스에 저장됩니다. Anthropic은 API로 받은 데이터를 자사 모델 학습에 사용하지 않는다고 밝히고 있습니다.
+          새로운 위탁이나 국외 이전이 생기면 시행 전에 이 방침을 고치고 다시 동의를 받습니다.
         </p>
       </section>
 

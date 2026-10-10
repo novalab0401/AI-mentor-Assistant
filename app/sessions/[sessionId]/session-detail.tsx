@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import RubricForm from "@/components/rubric-form";
+import AiPanel, { type HumanStat } from "@/components/ai-panel";
 import { supabase } from "@/lib/supabase";
 import {
   getTemplate, groupsOf, isComplete, scoredOf, textOf, toRows, type Answers,
@@ -252,6 +253,18 @@ export default function SessionDetail() {
             ))}
         </CardContent>
       </Card>
+
+      {/* ── AI 채점 (이 화면은 관리하는 사람만 들어와요) ── */}
+      <AiPanel
+        sessionId={sessionId}
+        items={scoredItems}
+        human={Object.fromEntries(
+          scoredItems.map((i): [string, HumanStat] => {
+            const st = stats(i.id);
+            return [i.id, { avg: st.n > 0 ? Number(st.avg) : null, n: st.n }];
+          })
+        )}
+      />
 
       {evaluators.length === 0 && (
         <p className="text-sm text-muted-foreground">아직 평가가 없어요.</p>
