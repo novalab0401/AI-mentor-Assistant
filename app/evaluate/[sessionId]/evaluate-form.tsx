@@ -8,10 +8,14 @@ import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import RubricForm from "@/components/rubric-form";
 import { supabase } from "@/lib/supabase";
+import { describeAudience } from "@/lib/audience";
 import { getTemplate, isComplete, scoredOf, toRows, type Answers } from "@/lib/rubric";
 import { useOperator } from "@/lib/use-operator";
 
-type Session = { session_no: number; mentor_name: string; major: string | null; rubric_type: string };
+type Session = {
+  session_no: number; mentor_name: string; major: string | null; rubric_type: string;
+  audience_level: string | null; audience_note: string | null; audience_size: number | null;
+};
 
 const empty: Answers = { scores: {}, memos: {} };
 
@@ -115,6 +119,9 @@ export default function EvaluateForm() {
             {session.major && <span className="font-normal"> · {session.major}</span>}
           </h1>
           <p className="text-sm text-muted-foreground">평가지: {template.name}</p>
+          {describeAudience(session) && (
+            <p className="text-sm"><b>수업 대상</b> · {describeAudience(session)}</p>
+          )}
         </div>
         <Button variant="outline" size="sm" onClick={copyLink}>
           {copied ? "복사됨!" : "링크 복사"}

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import TemplatePicker from "@/components/template-picker";
+import AudienceFields from "@/components/audience-fields";
+import { audienceToRow, emptyAudience } from "@/lib/audience";
 import { supabase } from "@/lib/supabase";
 import { defaultTemplateId } from "@/lib/rubric";
 
@@ -15,6 +17,7 @@ export default function NewSessionForm() {
   const [rubricType, setRubricType] = useState(defaultTemplateId);
   const [mentorName, setMentorName] = useState("");
   const [major, setMajor] = useState("");
+  const [audience, setAudience] = useState(emptyAudience);
   const [saving, setSaving] = useState(false);
   // 팀: 운영진은 아무 팀이나(또는 팀 없이), 팀장은 자기 팀만 고를 수 있어요
   const [teamOptions, setTeamOptions] = useState<{ id: string; name: string }[] | null>(null);
@@ -68,6 +71,7 @@ export default function NewSessionForm() {
         rubric_type: rubricType,
         group_id: groupId,
         team_id: teamId || null,
+        ...audienceToRow(audience),
       })
       .select("id")
       .single();
@@ -130,6 +134,9 @@ export default function NewSessionForm() {
           value={major}
           onChange={(e) => setMajor(e.target.value)}
         />
+
+        <p className="pt-2 text-sm font-medium">5. 수업 대상</p>
+        <AudienceFields value={audience} onChange={setAudience} />
       </div>
 
       <Button className="w-full" disabled={!canCreate} onClick={handleCreate}>

@@ -4,7 +4,7 @@
 import type { ScoredItem, Template } from "./rubric";
 
 // 프롬프트를 고치면 버전을 올리세요. 결과마다 어떤 버전으로 채점했는지 남아서 비교할 수 있어요.
-export const PROMPT_VERSION = "v3-2026-10-10"; // v3: 전공 소개 특화 4개 추가
+export const PROMPT_VERSION = "v4-2026-10-10"; // v4: 수업 대상 반영
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전문가가 만든 평가 기준(루브릭)에 따라 수업 전사문을 채점한다.
@@ -19,7 +19,8 @@ export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전
 7. next_action은 다음 수업에서 바로 해 볼 수 있는 구체적인 행동 한 가지로 쓴다. 예: "3번 슬라이드 설명 뒤에 '방금 내용을 친구에게 한 문장으로 설명해 볼래?'라고 묻는다."
 8. strengths와 improvements는 수업 전체에 대한 핵심 2~3개씩, 근거가 되는 장면을 함께 쓴다.
 9. 모든 글은 한국어로 쓴다.
-10. 수업 길이는 다음 순서로 판단한다. ① '수업 정보'에 실제 수업 시간이 있으면 그것을 따른다. 전사문의 마지막 시간 표시와 크게 다르면 전사문이 일부만 담긴 것으로 보고, rationale에 그 점을 밝힌다. ② 실제 시간이 없으면 전사문의 시간 표시(예: [03:05])를 근거로 쓴다. ③ 시간 표시도 없으면 글의 분량으로 길이를 추측하지 않는다. 이때는 단계별 시간 배분과 정리 유무만 본다.`;
+10. 수업 길이는 다음 순서로 판단한다. ① '수업 정보'에 실제 수업 시간이 있으면 그것을 따른다. 전사문의 마지막 시간 표시와 크게 다르면 전사문이 일부만 담긴 것으로 보고, rationale에 그 점을 밝힌다. ② 실제 시간이 없으면 전사문의 시간 표시(예: [03:05])를 근거로 쓴다. ③ 시간 표시도 없으면 글의 분량으로 길이를 추측하지 않는다. 이때는 단계별 시간 배분과 정리 유무만 본다.
+11. 멘토는 수업 대상을 미리 알고 들어간다. 학년을 묻지 않은 것은 감점 사유가 아니다. 설명·용어·예시의 수준은 '수업 정보'의 대상을 기준으로 판단한다. 예: 중학생 대상인데 '역학', '미분' 같은 용어를 풀어 주지 않고 쓰면 설명의 적절성과 학생 파악과 맞춤을 낮게 본다. 대상 정보가 없으면 수준이 맞았는지 단정하지 말고, rationale에 "대상 정보가 없어 수준 적합성은 판단하지 않았다"고 밝힌다.`;
 
 export function buildUserPrompt(opts: {
   template: Template;
@@ -28,6 +29,7 @@ export function buildUserPrompt(opts: {
   transcript: string;
   plannedMinutes?: number | null;
   actualMinutes?: number | null;
+  audience?: string | null;
 }) {
   const items = opts.template.items.filter((i): i is ScoredItem => i.kind === "score");
   const rubricText = items
@@ -42,6 +44,7 @@ export function buildUserPrompt(opts: {
 - 평가지: ${opts.template.name}
 - 수업한 사람: ${opts.presenter}
 - 전공·주제: ${opts.topic ?? "(없음)"}
+- 수업 대상: ${opts.audience ?? "(입력 안 됨)"}
 - 계획 시간: ${opts.plannedMinutes ? `${opts.plannedMinutes}분` : "(입력 안 됨)"}
 - 실제 수업 시간: ${opts.actualMinutes ? `${opts.actualMinutes}분` : "(입력 안 됨)"}
 

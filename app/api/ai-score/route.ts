@@ -8,6 +8,7 @@ import {
   DEFAULT_MODEL, PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt, outputSchema, verifyQuote,
   type AiOutput,
 } from "@/lib/ai-scoring";
+import { describeAudience } from "@/lib/audience";
 
 export const maxDuration = 300; // 긴 전사문은 채점에 1~2분 걸릴 수 있어요
 
@@ -41,7 +42,8 @@ export async function POST(request: Request) {
 
   // 2) 수업 정보와 가장 최근 전사문
   const { data: session } = await sb
-    .from("sessions").select("id, mentor_name, major, rubric_type").eq("id", sessionId).single();
+    .from("sessions").select("id, mentor_name, major, rubric_type, audience_level, audience_note, audience_size")
+    .eq("id", sessionId).single();
   if (!session) return fail(404, "수업을 찾을 수 없어요.");
 
   const { data: transcript } = await sb
@@ -73,6 +75,7 @@ export async function POST(request: Request) {
             presenter: session.mentor_name,
             topic: session.major,
             transcript: transcript.content,
+            audience: describeAudience(session),
             plannedMinutes: transcript.planned_minutes,
             actualMinutes: transcript.actual_minutes,
           }),

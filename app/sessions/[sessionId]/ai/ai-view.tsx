@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import BackLink from "@/components/back-link";
+import AudienceFields from "@/components/audience-fields";
+import { Button } from "@/components/ui/button";
+import { audienceFromRow, audienceToRow, describeAudience, type Audience } from "@/lib/audience";
 import AiPanel, { type HumanStat } from "@/components/ai-panel";
 import { supabase } from "@/lib/supabase";
 import { getTemplate, scoredOf } from "@/lib/rubric";
@@ -10,6 +13,7 @@ import { getTemplate, scoredOf } from "@/lib/rubric";
 type Session = {
   session_no: number; mentor_name: string; major: string | null; session_date: string;
   rubric_type: string; group_id: string; presenter_id: string | null;
+  audience_level: string | null; audience_note: string | null; audience_size: number | null;
 };
 
 // AI 평가 전용 화면 — 사람 평가와 독립적이에요.
@@ -19,14 +23,19 @@ export default function AiView() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [human, setHuman] = useState<Record<string, HumanStat>>({});
   const [canManage, setCanManage] = useState(false);
+  const [audienceEdit, setAudienceEdit] = useState<Audience | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("session_no, mentor_name, major, session_date, rubric_type, group_id, presenter_id")
+      .select("session_no, mentor_name, major, session_date, rubric_type, group_id, presenter_id, audience_level, audience_note, audience_size")
       .eq("id", sessionId)
       .single()
       .then(({ data }) => setSession(data ?? null));
+  }, [sessionId, reloadKey]);
+
+  useEffect(() => {
 
     supabase.rpc("can_manage_session", { sid: sessionId }).then(({ data }) => setCanManage(data === true));
 
@@ -53,6 +62,18 @@ export default function AiView() {
   if (session === null) return <main className="p-4">이 수업을 볼 권한이 없거나 존재하지 않아요.</main>;
 
   const template = getTemplate(session.rubric_type);
+  const audience = describeAudience(session);
+
+  async function saveAudience() {
+    if (!audienceEdit) return;
+    const row = audienceToRow(audienceEdit);
+    const { error } = await supabase.rpc("set_session_audience", {
+      p_session: sessionId, p_level: row.audience_level ?? "", p_note: row.audience_note ?? "", p_size: row.audience_size,
+    });
+    if (error) return alert("저장 실패: " + error.message);
+    setAudienceEdit(null);
+    setReloadKey((k) => k + 1);
+  }
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
@@ -77,11 +98,40 @@ export default function AiView() {
         </span>
       </p>
 
+      {/* ── 수업 대상 ── */}
+      <div className="space-y-2 rounded-md border p-3 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <p>
+            <b>수업 대상</b> · {audience ?? <span className="text-muted-foreground">입력 안 됨</span>}
+          </p>
+          {!audienceEdit && (
+            <Button size="sm" variant="outline" onClick={() => setAudienceEdit(audienceFromRow(session))}>
+              {audience ? "수정" : "입력"}
+            </Button>
+          )}
+        </div>
+        {!audience && !audienceEdit && (
+          <p className="text-xs text-muted-foreground">
+            대상을 적으면 AI가 설명·용어 수준이 그 학생들에게 맞았는지까지 채점해요. 바꾼 뒤에는 다시 채점하세요.
+          </p>
+        )}
+        {audienceEdit && (
+          <>
+            <AudienceFields value={audienceEdit} onChange={setAudienceEdit} />
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" onClick={() => setAudienceEdit(null)}>취소</Button>
+              <Button size="sm" onClick={saveAudience}>저장</Button>
+            </div>
+          </>
+        )}
+      </div>
+
       <AiPanel
         sessionId={sessionId}
         template={template}
         presenter={session.mentor_name}
         topic={session.major}
+        audience={audience}
         human={human}
       />
       <p className="text-xs text-muted-foreground">평가 항목 {scoredOf(template.items).length}개</p>

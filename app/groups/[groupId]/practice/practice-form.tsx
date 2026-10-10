@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import TemplatePicker from "@/components/template-picker";
+import AudienceFields from "@/components/audience-fields";
+import { audienceToRow, emptyAudience } from "@/lib/audience";
 import { supabase } from "@/lib/supabase";
 import { defaultTemplateId } from "@/lib/rubric";
 
@@ -15,6 +17,7 @@ export default function PracticeForm() {
   const router = useRouter();
   const [rubricType, setRubricType] = useState(defaultTemplateId);
   const [topic, setTopic] = useState("");
+  const [audience, setAudience] = useState(emptyAudience);
   const [busy, setBusy] = useState(false);
 
   async function create() {
@@ -30,6 +33,7 @@ export default function PracticeForm() {
         mentor_name: me?.display_name ?? "나",
         major: topic.trim() || null,
         rubric_type: rubricType,
+        ...audienceToRow(audience),
       })
       .select("id")
       .single();
@@ -55,6 +59,10 @@ export default function PracticeForm() {
       <div className="space-y-2">
         <p className="text-sm font-medium">2. 전공·주제 (선택)</p>
         <Input placeholder="예: 기계공학과 / PID 3차시" value={topic} onChange={(e) => setTopic(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium">3. 수업 대상</p>
+        <AudienceFields value={audience} onChange={setAudience} />
       </div>
       <Button className="w-full" disabled={busy} onClick={create}>
         {busy ? "만드는 중..." : "만들고 전사문 올리기"}
