@@ -62,14 +62,14 @@ export default function ConsentChecklist({
         onToggle={toggle("research")}
         label={
           <>
-            <b>[선택]</b> 이름 등 개인을 알아볼 수 없게 처리한 평가 데이터를 평가 기준 개선과
-            AI 채점 연구에 활용하는 데 동의
+            <b>[필수]</b> 평가 데이터를 AI 채점과 평가 기준 개선에 활용하는 데 동의
+            (분석·개선에는 개인을 알아볼 수 없게 처리한 데이터를 써요)
           </>
         }
         link={{ href: "/privacy#research", text: "자세히" }}
       />
       <p className="pt-1 text-xs text-muted-foreground">
-        선택 항목은 동의하지 않아도 서비스를 이용할 수 있어요.
+        모든 항목에 동의해야 가입할 수 있어요. AI 채점과 평가 기준 개선은 이 서비스의 핵심 기능이에요.
       </p>
     </div>
   );
