@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { scoredOf, type ScoredItem, type Template } from "@/lib/rubric";
 import { PROMPT_VERSION, buildManualPrompt, parseAiOutput, verifyQuote } from "@/lib/ai-scoring";
+import { findMajor, majorPromptText } from "@/lib/majors";
 
 type Transcript = {
   id: number; content: string; source: string; created_at: string;
@@ -126,6 +127,10 @@ export default function AiPanel({
     await navigator.clipboard.writeText(
       buildManualPrompt({
         template, presenter, topic, audience, transcript: transcript.content,
+        majorText: (() => {
+          const m = findMajor(topic);
+          return m ? majorPromptText(m) : null;
+        })(),
         plannedMinutes: transcript.planned_minutes, actualMinutes: transcript.actual_minutes,
       })
     );

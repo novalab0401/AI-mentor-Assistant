@@ -9,6 +9,7 @@ import {
   type AiOutput,
 } from "@/lib/ai-scoring";
 import { describeAudience } from "@/lib/audience";
+import { findMajor, majorPromptText } from "@/lib/majors";
 
 export const maxDuration = 300; // 긴 전사문은 채점에 1~2분 걸릴 수 있어요
 
@@ -76,6 +77,10 @@ export async function POST(request: Request) {
             topic: session.major,
             transcript: transcript.content,
             audience: describeAudience(session),
+            majorText: (() => {
+              const m = findMajor(session.major);
+              return m ? majorPromptText(m) : null;
+            })(),
             plannedMinutes: transcript.planned_minutes,
             actualMinutes: transcript.actual_minutes,
           }),

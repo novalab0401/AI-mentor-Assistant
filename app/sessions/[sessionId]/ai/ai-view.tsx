@@ -6,6 +6,7 @@ import BackLink from "@/components/back-link";
 import AudienceFields from "@/components/audience-fields";
 import { Button } from "@/components/ui/button";
 import { audienceFromRow, audienceToRow, describeAudience, type Audience } from "@/lib/audience";
+import { findMajor } from "@/lib/majors";
 import AiPanel, { type HumanStat } from "@/components/ai-panel";
 import { supabase } from "@/lib/supabase";
 import { getTemplate, scoredOf } from "@/lib/rubric";
@@ -63,6 +64,7 @@ export default function AiView() {
 
   const template = getTemplate(session.rubric_type);
   const audience = describeAudience(session);
+  const majorProfile = template.id.startsWith("mentor") ? findMajor(session.major) : null;
 
   async function saveAudience() {
     if (!audienceEdit) return;
@@ -97,6 +99,23 @@ export default function AiView() {
           AI 평가는 지금 사람 평가와 비교하며 검증 중이에요. 참고용으로 활용해 주세요.
         </span>
       </p>
+
+      {/* ── 학과 자료 ── */}
+      {template.id.startsWith("mentor") && (
+        <p className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+          {majorProfile ? (
+            <>
+              <b className="text-foreground">학과 자료 연결됨</b> · {majorProfile.name} ·{" "}
+              <a href={majorProfile.source.url} target="_blank" rel="noreferrer" className="underline">
+                {majorProfile.source.label}
+              </a>
+              <br />AI가 전공·진로 정보가 맞는지, 고등학생에게 어떤 과목·활동을 권할지 이 자료를 기준으로 판단해요.
+            </>
+          ) : (
+            <>학과 자료 없음 · 이 전공은 아직 학과 자료가 없어 AI가 일반 지식으로 정확성을 판단해요.</>
+          )}
+        </p>
+      )}
 
       {/* ── 수업 대상 ── */}
       <div className="space-y-2 rounded-md border p-3 text-sm">
