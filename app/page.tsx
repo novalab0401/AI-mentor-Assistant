@@ -125,7 +125,7 @@ export default function Home() {
                 <CardDescription>
                   {getTemplate(f.rubric_type).name}
                   {" · "}사람 평가 {f.feedback_open ? `공개 (${f.evaluator_count}명)` : "공개 전"}
-                  {" · "}AI {f.ai_open ? "공개" : f.ai_run_count > 0 ? "채점됨" : "없음"}
+                  {" · "}AI {f.ai_run_count > 0 ? `채점 ${f.ai_run_count}회` : "아직 없음"}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-2">
@@ -139,7 +139,7 @@ export default function Home() {
                 )}
                 <Link href={`/sessions/${f.session_id}/ai`}
                   className="rounded-lg border border-primary/60 py-1.5 text-center text-sm font-medium">
-                  AI로 연습하기
+                  AI 평가하기
                 </Link>
               </CardContent>
             </Card>

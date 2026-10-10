@@ -180,7 +180,9 @@ function AiSection({
   const avg = scored.length > 0 ? scored.reduce((a, b) => a + b, 0) / scored.length : null;
   return (
     <section className="space-y-3">
-      <h2 className="text-base font-bold">AI 평가</h2>
+      <h2 className="text-base font-bold">
+        AI 평가 <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">검증 중 · 참고용</span>
+      </h2>
       <p className="rounded-md border border-primary/40 px-3 py-2 text-sm">
         {avg !== null && <>AI 평균 <b className="text-lg">{avg.toFixed(1)}</b> / 4 · </>}
         <span className="text-xs text-muted-foreground">
