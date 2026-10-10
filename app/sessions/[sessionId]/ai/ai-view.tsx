@@ -97,7 +97,7 @@ export default function AiView() {
       <BackLink href={canManage ? `/sessions/${sessionId}` : "/"} label={canManage ? "수업 화면" : "홈"} />
       <div>
         <p className="text-sm text-muted-foreground">
-          시연 #{session.session_no} · {session.session_date} · {template.name}
+          시연 #{session.session_no} · {session.session_date} · {template.name} · {sceneLabel(session.scene)}
         </p>
         <h1 className="text-xl font-bold">
           AI 평가 · {session.mentor_name}

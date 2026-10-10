@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
-import { getTemplate, groupsOf, scoredOf, textOf } from "@/lib/rubric";
+import { sceneLabel, getTemplate, groupsOf, scoredOf, textOf } from "@/lib/rubric";
 
 type Row = { evaluator: number; item_id: string; score: number | null; memo: string | null };
 type AiResult = {
@@ -74,7 +74,7 @@ export default function FeedbackView() {
     <main className="mx-auto max-w-md space-y-5 p-4 pb-12">
       <div>
         <p className="text-sm text-muted-foreground">
-          시연 #{data.session_no} · {data.session_date} · {template.name}
+          시연 #{data.session_no} · {data.session_date} · {template.name} · {sceneLabel(scene)}
         </p>
         <h1 className="text-xl font-bold">
           {data.mentor_name} 님의 피드백
