@@ -306,6 +306,7 @@ export default function GroupHome() {
               people={active.map((m) => ({ user_id: m.user_id, name: m.profiles?.display_name ?? "(이름 없음)" }))}
               userId={user!.id}
               isAdmin={isAdmin}
+              isGroupMember={me?.status === "active"}
               onChange={reload}
               onOpenSessions={(teamId) => { setSessionTeam(teamId); setTab("sessions"); }}
             />

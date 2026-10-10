@@ -26,13 +26,14 @@ type GroupPerson = { user_id: string; name: string };
 // - 팀장: 자기 팀의 신청 승인, 팀원 추가·내보내기, 팀장 지정
 // - 멤버: 팀 가입 신청, 팀 나가기
 export default function TeamTab({
-  groupId, teams, people, userId, isAdmin, onChange, onOpenSessions,
+  groupId, teams, people, userId, isAdmin, isGroupMember, onChange, onOpenSessions,
 }: {
   groupId: string;
   teams: Team[];
   people: GroupPerson[]; // 그룹에서 활동 중인 사람 (팀원 추가 후보)
   userId: string;
   isAdmin: boolean;
+  isGroupMember: boolean; // 그룹 멤버만 팀에 신청할 수 있어요 (Nova Lab 관리자는 관리만)
   onChange: () => void;
   onOpenSessions: (teamId: string) => void; // 수업 탭으로 이동해 이 팀 수업만 보기
 }) {
@@ -195,7 +196,7 @@ export default function TeamTab({
                 )}
 
                 {/* 내 신청·나가기 */}
-                {!mine && (
+                {!mine && isGroupMember && (
                   <Button className="w-full" disabled={busy}
                     onClick={() => run(tm().insert({ team_id: t.id, user_id: userId }))}>
                     이 팀에 가입 신청
