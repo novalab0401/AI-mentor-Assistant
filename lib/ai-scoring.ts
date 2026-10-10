@@ -4,7 +4,7 @@
 import type { ScoredItem, Template } from "./rubric";
 
 // 프롬프트를 고치면 버전을 올리세요. 결과마다 어떤 버전으로 채점했는지 남아서 비교할 수 있어요.
-export const PROMPT_VERSION = "v7-2026-10-10"; // v7: 학과 공통 자료(커리어넷) 반영
+export const PROMPT_VERSION = "v8-2026-10-10"; // v8: 대상 학년별 교육과정(2015/2022 개정) 구분
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전문가가 만든 평가 기준(루브릭)에 따라 수업 전사문을 채점한다.

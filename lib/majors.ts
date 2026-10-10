@@ -104,10 +104,24 @@ export function findMajor(text: string | null | undefined): MajorProfile | null 
   );
 }
 
+// 대상 학년이 어느 교육과정으로 배우는지 (2022 개정은 2025년 고1부터 한 학년씩 적용)
+//  2025: 고1 / 2026: 고1·고2 / 2027~: 고등학교 전 학년. 중학생은 고등학교에 2022 개정으로 진학.
+export function curriculumFor(level: string | null | undefined, year = new Date().getFullYear()): string | null {
+  if (!level) return null;
+  if (level.startsWith("초등") || level.startsWith("중")) return "2022 개정 교육과정";
+  const grade = { 고1: 1, 고2: 2, 고3: 3 }[level as "고1" | "고2" | "고3"];
+  if (!grade) return null;
+  return year - 2024 >= grade ? "2022 개정 교육과정" : "2015 개정 교육과정";
+}
+
 // AI 프롬프트에 넣을 학과 자료
-export function majorPromptText(m: MajorProfile) {
+export function majorPromptText(m: MajorProfile, audienceLevel?: string | null) {
+  const cur = curriculumFor(audienceLevel);
+  const curLine = cur
+    ? `\n- 이 수업 대상(${audienceLevel})이 배우는 교육과정: **${cur}**. 고교 과목을 말하거나 권할 때는 이 교육과정의 과목 이름을 쓴다. 대상 정보에 다른 교육과정의 과목명(예: 2022 개정 대상인데 '물리학Ⅰ')이 적혀 있어도 이 교육과정 이름으로 바꿔 쓰고, 멘토가 옛 과목명을 말했다면 정확성에서 가볍게 지적한다.`
+    : "";
   return `## 학과 공통 자료: ${m.name} (출처: ${m.source.label}, ${m.source.updated})
-이 자료는 국가 공통 기준이에요. 학교마다 다를 수 있는 것은 따로 표시했어요.
+이 자료는 국가 공통 기준이에요. 학교마다 다를 수 있는 것은 따로 표시했어요.${curLine}
 
 - 개요: ${m.summary}
 - 흥미와 적성: ${m.fit}

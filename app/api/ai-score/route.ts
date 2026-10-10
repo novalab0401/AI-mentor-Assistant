@@ -79,7 +79,7 @@ export async function POST(request: Request) {
             audience: describeAudience(session),
             majorText: (() => {
               const m = findMajor(session.major);
-              return m ? majorPromptText(m) : null;
+              return m ? majorPromptText(m, session.audience_level) : null;
             })(),
             plannedMinutes: transcript.planned_minutes,
             actualMinutes: transcript.actual_minutes,
