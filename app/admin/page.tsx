@@ -7,24 +7,34 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import { supabase } from "@/lib/supabase";
+import { roleLabels, type Role } from "@/lib/roles";
 
 type G = {
   id: string; name: string; created_at: string; owner_name: string | null; owner_email: string | null;
   member_count: number; team_count: number; session_count: number; evaluation_count: number;
   deletion_requested_at: string | null; deletion_reason: string | null;
 };
+type Membership = {
+  group_id: string; group_name: string; role: Role; status: "pending" | "active"; is_owner: boolean;
+};
 type U = {
   id: string; email: string; display_name: string; is_platform_admin: boolean;
   email_confirmed: boolean; owned_groups: number; group_count: number; created_at: string;
+  memberships: Membership[];
 };
 
-// Nova Lab 관리자 화면: 전체 그룹 현황·삭제 요청·그룹장 변경, 가입자 관리
+// 가입자 걸러 보기: 전체 / 소속 없음 / 그룹 하나
+const ALL = "all";
+const NONE = "none";
+
+// Nova Lab 관리자 화면: 전체 그룹 현황·삭제 요청·그룹장 변경, 가입자 관리(소속별 보기)
 export default function AdminPage() {
   const [groups, setGroups] = useState<G[] | null>(null);
   const [users, setUsers] = useState<U[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"groups" | "users">("groups");
   const [q, setQ] = useState("");
+  const [groupFilter, setGroupFilter] = useState<string>(ALL);
   const [reloadKey, setReloadKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [ownerEdit, setOwnerEdit] = useState<{ id: string; email: string } | null>(null);
@@ -52,9 +62,19 @@ export default function AdminPage() {
   const total = (k: "member_count" | "session_count" | "evaluation_count") =>
     (groups ?? []).reduce((a, g) => a + Number(g[k]), 0);
   const requests = (groups ?? []).filter((g) => g.deletion_requested_at);
-  const shownUsers = (users ?? []).filter(
-    (u) => q.trim() === "" || u.email.includes(q.trim()) || u.display_name.includes(q.trim())
-  );
+
+  const allUsers = users ?? [];
+  const noGroupCount = allUsers.filter((u) => (u.memberships ?? []).length === 0).length;
+  const countIn = (gid: string) => allUsers.filter((u) => (u.memberships ?? []).some((m) => m.group_id === gid)).length;
+
+  const shownUsers = allUsers
+    .filter((u) => {
+      const ms = u.memberships ?? [];
+      if (groupFilter === NONE) return ms.length === 0;
+      if (groupFilter !== ALL) return ms.some((m) => m.group_id === groupFilter);
+      return true;
+    })
+    .filter((u) => q.trim() === "" || u.email.includes(q.trim()) || u.display_name.includes(q.trim()));
 
   return (
     <main className="mx-auto max-w-md space-y-4 p-4">
@@ -89,7 +109,7 @@ export default function AdminPage() {
         {(["groups", "users"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`rounded-md py-1.5 ${tab === t ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}>
-            {t === "groups" ? `그룹 ${(groups ?? []).length}` : `가입자 ${(users ?? []).length}`}
+            {t === "groups" ? `그룹 ${(groups ?? []).length}` : `가입자 ${allUsers.length}`}
           </button>
         ))}
       </div>
@@ -134,7 +154,19 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {ownerEdit?.id === g.id ? (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline"
+                    onClick={() => { setGroupFilter(g.id); setTab("users"); }}>
+                    이 그룹 가입자 보기
+                  </Button>
+                  {ownerEdit?.id !== g.id && (
+                    <Button size="sm" variant="outline" onClick={() => setOwnerEdit({ id: g.id, email: "" })}>
+                      그룹장 변경
+                    </Button>
+                  )}
+                </div>
+
+                {ownerEdit?.id === g.id && (
                   <div className="flex gap-2">
                     <Input type="email" placeholder="새 그룹장 이메일" value={ownerEdit.email}
                       onChange={(e) => setOwnerEdit({ ...ownerEdit, email: e.target.value })} />
@@ -147,10 +179,6 @@ export default function AdminPage() {
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setOwnerEdit(null)}>취소</Button>
                   </div>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => setOwnerEdit({ id: g.id, email: "" })}>
-                    그룹장 변경
-                  </Button>
                 )}
               </CardContent>
             </Card>
@@ -161,54 +189,90 @@ export default function AdminPage() {
         </section>
       )}
 
-      {/* ── 가입자 ── */}
+      {/* ── 가입자 (소속별로 걸러 보기) ── */}
       {tab === "users" && (
         <section className="space-y-2">
+          <select
+            className="w-full rounded-md border bg-background px-2 py-2 text-sm"
+            value={groupFilter}
+            onChange={(e) => setGroupFilter(e.target.value)}
+          >
+            <option value={ALL}>전체 가입자 ({allUsers.length}명)</option>
+            <option value={NONE}>소속 없음 ({noGroupCount}명)</option>
+            {(groups ?? []).map((g) => (
+              <option key={g.id} value={g.id}>{g.name} ({countIn(g.id)}명)</option>
+            ))}
+          </select>
           <Input placeholder="이름 또는 이메일로 검색" value={q} onChange={(e) => setQ(e.target.value)} />
-          {shownUsers.map((u) => (
-            <Card key={u.id}>
-              <CardHeader>
-                {nameEdit?.id === u.id ? (
+          <p className="text-xs text-muted-foreground">{shownUsers.length}명 표시 중</p>
+
+          {shownUsers.map((u) => {
+            const ms = u.memberships ?? [];
+            return (
+              <Card key={u.id}>
+                <CardHeader>
+                  {nameEdit?.id === u.id ? (
+                    <div className="flex gap-2">
+                      <Input value={nameEdit.name} onChange={(e) => setNameEdit({ ...nameEdit, name: e.target.value })} />
+                      <Button size="sm" disabled={busy || nameEdit.name.trim() === ""}
+                        onClick={() =>
+                          run(supabase.rpc("admin_rename_user", { p_user: u.id, p_name: nameEdit.name }),
+                            () => setNameEdit(null))
+                        }>
+                        저장
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setNameEdit(null)}>취소</Button>
+                    </div>
+                  ) : (
+                    <CardTitle>
+                      {u.display_name}
+                      {u.is_platform_admin && <span className="text-xs font-normal text-primary"> Nova Lab</span>}
+                    </CardTitle>
+                  )}
+                  <CardDescription>
+                    {u.email} · {u.email_confirmed ? "인증 완료" : "⚠ 이메일 미인증"} · 가입 {u.created_at.slice(0, 10)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* 소속 */}
+                  {ms.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">소속 없음</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {ms.map((m) => (
+                        <button
+                          key={m.group_id}
+                          onClick={() => setGroupFilter(m.group_id)}
+                          className={`rounded-full border px-2 py-0.5 text-xs ${
+                            m.status === "pending" ? "border-dashed text-muted-foreground" : ""
+                          } ${groupFilter === m.group_id ? "border-primary bg-primary/10" : ""}`}
+                          title="이 그룹 가입자만 보기"
+                        >
+                          {m.group_name} · {m.is_owner ? "그룹장" : roleLabels[m.role]}
+                          {m.status === "pending" && " (승인 대기)"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="flex gap-2">
-                    <Input value={nameEdit.name} onChange={(e) => setNameEdit({ ...nameEdit, name: e.target.value })} />
-                    <Button size="sm" disabled={busy || nameEdit.name.trim() === ""}
-                      onClick={() =>
-                        run(supabase.rpc("admin_rename_user", { p_user: u.id, p_name: nameEdit.name }),
-                          () => setNameEdit(null))
-                      }>
-                      저장
+                    <Button size="sm" variant="outline" onClick={() => setNameEdit({ id: u.id, name: u.display_name })}>
+                      이름 수정
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setNameEdit(null)}>취소</Button>
+                    {!u.is_platform_admin && (
+                      <Button size="sm" variant="destructive" disabled={busy}
+                        onClick={() =>
+                          confirm(`${u.display_name} (${u.email}) 계정을 삭제할까요? 로그인할 수 없게 되고, 그룹·팀 소속도 사라져요. 이 사람이 남긴 평가 기록은 남아요.`) &&
+                          run(supabase.rpc("admin_delete_user", { p_user: u.id }))
+                        }>
+                        계정 삭제
+                      </Button>
+                    )}
                   </div>
-                ) : (
-                  <CardTitle>
-                    {u.display_name}
-                    {u.is_platform_admin && <span className="text-xs font-normal text-primary"> Nova Lab</span>}
-                  </CardTitle>
-                )}
-                <CardDescription>
-                  {u.email} · {u.email_confirmed ? "인증 완료" : "⚠ 이메일 미인증"}
-                </CardDescription>
-                <CardDescription>
-                  그룹 {u.group_count}개 소속{u.owned_groups > 0 && ` · 그룹장 ${u.owned_groups}개`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => setNameEdit({ id: u.id, name: u.display_name })}>
-                  이름 수정
-                </Button>
-                {!u.is_platform_admin && (
-                  <Button size="sm" variant="destructive" disabled={busy}
-                    onClick={() =>
-                      confirm(`${u.display_name} (${u.email}) 계정을 삭제할까요? 로그인할 수 없게 되고, 그룹·팀 소속도 사라져요. 이 사람이 남긴 평가 기록은 남아요.`) &&
-                      run(supabase.rpc("admin_delete_user", { p_user: u.id }))
-                    }>
-                    계정 삭제
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </section>
       )}
     </main>
