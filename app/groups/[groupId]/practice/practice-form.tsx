@@ -28,13 +28,15 @@ export default function PracticeForm() {
     setBusy(true);
     const { data: auth } = await supabase.auth.getUser();
     const uid = auth.user!.id;
-    const { data: me } = await supabase.from("profiles").select("display_name").eq("id", uid).single();
+    const { data: me } = await supabase.from("profiles").select("display_name, university, department").eq("id", uid).single();
     const { data, error } = await supabase
       .from("sessions")
       .insert({
         group_id: groupId,
         presenter_id: uid,
         mentor_name: me?.display_name ?? "나",
+        presenter_university: me?.university ?? null,
+        presenter_department: me?.department ?? null,
         major: topic.trim() || null,
         rubric_type: rubricType,
         ...audienceToRow(audience),

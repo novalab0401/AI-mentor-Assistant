@@ -27,6 +27,7 @@ export default function Home() {
   const user = useOperator();
   const [mine, setMine] = useState<MyGroup[] | null>(null);
   const [name, setName] = useState("");
+  const [affil, setAffil] = useState<string | null | undefined>(undefined); // 소속 (없으면 null)
   const [feedback, setFeedback] = useState<MyFeedback[]>([]);
   const perm = usePermissions(!!user);
   useConsentGuard(user);
@@ -41,10 +42,13 @@ export default function Home() {
       .then(({ data }) => setMine((data as unknown as MyGroup[]) ?? []));
     supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, university, department")
       .eq("id", user.id)
       .single()
-      .then(({ data }) => setName(data?.display_name ?? ""));
+      .then(({ data }) => {
+        setName(data?.display_name ?? "");
+        setAffil([data?.university, data?.department].filter(Boolean).join(" · ") || null);
+      });
     supabase.rpc("my_feedback_list").then(({ data }) => setFeedback((data as MyFeedback[]) ?? []));
   }, [user]);
 
@@ -85,9 +89,19 @@ export default function Home() {
         <div>
           <p className="text-sm text-muted-foreground">안녕하세요</p>
           <h1 className="text-xl font-bold">{name || user.email} 님</h1>
+          {affil && <p className="text-xs text-muted-foreground">{affil}</p>}
         </div>
-        <button onClick={logout} className="text-xs text-muted-foreground underline">로그아웃</button>
+        <span className="flex gap-3 text-xs text-muted-foreground">
+          <Link href="/me" className="underline">내 정보</Link>
+          <button onClick={logout} className="underline">로그아웃</button>
+        </span>
       </div>
+
+      {affil === null && (
+        <Link href="/me" className="block rounded-md border border-primary/40 p-3 text-sm">
+          <b>소속을 적어 주세요</b> · 대학교·학과를 적어 두면 수업 기록이 학과별로 쌓여요. →
+        </Link>
+      )}
 
       <div className={`grid gap-2 ${canCreateGroup(perm) ? "grid-cols-2" : "grid-cols-1"}`}>
         <Link href="/groups"

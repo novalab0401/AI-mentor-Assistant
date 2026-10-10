@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { scoredOf, type ScoredItem, type Template } from "@/lib/rubric";
 import { PROMPT_VERSION, buildManualPrompt, parseAiOutput, verifyQuote } from "@/lib/ai-scoring";
 import { findMajor, majorPromptText } from "@/lib/majors";
+import { materialPromptText, type MaterialRow } from "@/lib/materials";
 
 type Transcript = {
   id: number; content: string; source: string; created_at: string;
@@ -53,8 +54,13 @@ export default function AiPanel({
   const [elapsed, setElapsed] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
+  const [material, setMaterial] = useState<MaterialRow | null>(null);
 
   useEffect(() => {
+    supabase
+      .from("materials").select("id, file_name, mime, size_bytes, storage_path, page_count, extract_status, extracted, created_at")
+      .eq("session_id", sessionId).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => setMaterial((data as MaterialRow | null) ?? null));
     supabase
       .from("transcripts").select("id, content, source, created_at, planned_minutes, actual_minutes")
       .eq("session_id", sessionId).order("created_at", { ascending: false }).limit(1).maybeSingle()
@@ -129,6 +135,7 @@ export default function AiPanel({
     await navigator.clipboard.writeText(
       buildManualPrompt({
         template, presenter, topic, audience, sceneLabel, lessonPlan, transcript: transcript.content,
+        materialText: material ? materialPromptText(material) : null,
         majorText: (() => {
           const m = findMajor(topic);
           return m ? majorPromptText(m) : null;

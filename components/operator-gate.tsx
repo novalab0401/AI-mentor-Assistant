@@ -32,6 +32,7 @@ export default function OperatorGate({ children }: { children: React.ReactNode }
           <div className="mx-auto flex max-w-md items-center justify-between px-4 pt-3 text-xs text-muted-foreground">
             <Link href="/" className="underline underline-offset-2">내 그룹</Link>
             <span className="flex gap-3">
+              <Link href="/me" className="underline underline-offset-2">내 정보</Link>
               <span>{user.email}</span>
               <button onClick={logout} className="underline underline-offset-2">로그아웃</button>
             </span>

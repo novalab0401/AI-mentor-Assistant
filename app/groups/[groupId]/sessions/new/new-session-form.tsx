@@ -28,7 +28,9 @@ export default function NewSessionForm() {
   const [teamId, setTeamId] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   // 발표자: 그룹 멤버 중에서 고르면 그 사람이 로그인해서 바로 결과를 볼 수 있어요
-  const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
+  const [people, setPeople] = useState<{ id: string; name: string; university: string | null; department: string | null }[]>([]);
+  const [otherUni, setOtherUni] = useState("");
+  const [otherDept, setOtherDept] = useState("");
   const [presenterId, setPresenterId] = useState(""); // "" = 아직 안 고름, "other" = 멤버 아님
 
   useEffect(() => {
@@ -49,11 +51,16 @@ export default function NewSessionForm() {
       if (!admin && list.length > 0) setTeamId(list[0].id);
 
       const { data: members } = await supabase
-        .from("group_members").select("user_id, profiles(display_name)")
+        .from("group_members").select("user_id, profiles(display_name, university, department)")
         .eq("group_id", groupId).eq("status", "active");
       setPeople(
-        ((members ?? []) as unknown as { user_id: string; profiles: { display_name: string } | null }[])
-          .map((m) => ({ id: m.user_id, name: m.profiles?.display_name ?? "(이름 없음)" }))
+        ((members ?? []) as unknown as {
+          user_id: string; profiles: { display_name: string; university: string | null; department: string | null } | null;
+        }[])
+          .map((m) => ({
+            id: m.user_id, name: m.profiles?.display_name ?? "(이름 없음)",
+            university: m.profiles?.university ?? null, department: m.profiles?.department ?? null,
+          }))
           .sort((a, b) => a.name.localeCompare(b.name, "ko"))
       );
     })();
@@ -61,6 +68,7 @@ export default function NewSessionForm() {
 
   const isMentor = rubricType.startsWith("mentor");
   const isOther = presenterId === "other";
+  const picked = people.find((p) => p.id === presenterId);
   const presenterName = isOther ? mentorName.trim() : people.find((p) => p.id === presenterId)?.name ?? "";
   const canCreate = presenterName !== "" && !saving && (isAdmin || teamId !== "");
 
@@ -71,6 +79,8 @@ export default function NewSessionForm() {
       .insert({
         mentor_name: presenterName,
         presenter_id: isOther ? null : presenterId,
+        presenter_university: isOther ? otherUni.trim() || null : picked?.university ?? null,
+        presenter_department: isOther ? otherDept.trim() || null : picked?.department ?? null,
         major: major.trim() || null,
         rubric_type: rubricType,
         group_id: groupId,
@@ -125,9 +135,18 @@ export default function NewSessionForm() {
           {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           <option value="other">그룹 멤버가 아닌 사람 (이름 직접 입력)</option>
         </select>
+        {picked && (
+          <p className="text-xs text-muted-foreground">
+            소속: {[picked.university, picked.department].filter(Boolean).join(" · ") || "아직 안 적었어요 (본인이 '내 정보'에서 적을 수 있어요)"}
+          </p>
+        )}
         {isOther && (
           <>
             <Input placeholder="이름" value={mentorName} onChange={(e) => setMentorName(e.target.value)} />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="대학교 (예: UNIST)" value={otherUni} onChange={(e) => setOtherUni(e.target.value)} />
+              <Input placeholder="학과 (예: 기계공학과)" value={otherDept} onChange={(e) => setOtherDept(e.target.value)} />
+            </div>
             <p className="text-xs text-muted-foreground">
               멤버가 아니면 사이트에서 직접 볼 수 없어요. 결과 화면의 “피드백 링크”를 보내 주세요.
             </p>

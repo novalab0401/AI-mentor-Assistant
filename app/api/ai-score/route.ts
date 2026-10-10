@@ -10,6 +10,7 @@ import {
 } from "@/lib/ai-scoring";
 import { describeAudience } from "@/lib/audience";
 import { findMajor, majorPromptText } from "@/lib/majors";
+import { PDF_MIME, isPdf, materialPromptText, type MaterialRow } from "@/lib/materials";
 
 export const maxDuration = 300; // 긴 전사문은 채점에 1~2분 걸릴 수 있어요
 
@@ -56,6 +57,40 @@ export async function POST(request: Request) {
   const items = scoredOf(template.items);
   const model = process.env.AI_MODEL || DEFAULT_MODEL;
 
+  // 발표 자료: 가장 최근에 올린 것. PDF면 파일을 그대로 보여 주고(화면까지 봄), PPTX면 뽑은 글자만
+  const { data: mat } = await sb
+    .from("materials").select("id, file_name, mime, size_bytes, storage_path, page_count, extract_status, extracted, created_at")
+    .eq("session_id", sessionId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const material = mat as MaterialRow | null;
+  let pdfBase64: string | null = null;
+  if (material && isPdf(material)) {
+    const { data: blob } = await sb.storage.from("materials").download(material.storage_path);
+    if (blob) pdfBase64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
+  }
+
+  const userText = buildUserPrompt({
+    template,
+    presenter: session.mentor_name,
+    topic: session.major,
+    transcript: transcript.content,
+    audience: describeAudience(session),
+    sceneLabel: sceneLabel(session.scene),
+    lessonPlan: session.lesson_plan,
+    majorText: (() => {
+      const m = findMajor(session.major);
+      return m ? majorPromptText(m, session.audience_level) : null;
+    })(),
+    materialText: material ? materialPromptText(material) : null,
+    plannedMinutes: transcript.planned_minutes,
+    actualMinutes: transcript.actual_minutes,
+  });
+  const content = pdfBase64
+    ? [
+        { type: "document", source: { type: "base64", media_type: PDF_MIME, data: pdfBase64 }, title: "발표 자료" },
+        { type: "text", text: userText },
+      ]
+    : userText;
+
   // 3) Claude 호출 (정해진 JSON 형식으로만 답하게)
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -71,21 +106,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "user",
-          content: buildUserPrompt({
-            template,
-            presenter: session.mentor_name,
-            topic: session.major,
-            transcript: transcript.content,
-            audience: describeAudience(session),
-            sceneLabel: sceneLabel(session.scene),
-            lessonPlan: session.lesson_plan,
-            majorText: (() => {
-              const m = findMajor(session.major);
-              return m ? majorPromptText(m, session.audience_level) : null;
-            })(),
-            plannedMinutes: transcript.planned_minutes,
-            actualMinutes: transcript.actual_minutes,
-          }),
+          content,
         },
       ],
       output_config: { format: { type: "json_schema", schema: outputSchema(items.map((i) => i.id)) } },

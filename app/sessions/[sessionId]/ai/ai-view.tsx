@@ -10,6 +10,7 @@ import { findMajor } from "@/lib/majors";
 import ScenePicker from "@/components/scene-picker";
 import PlanField from "@/components/plan-field";
 import PlanReviewPanel from "@/components/plan-review-panel";
+import MaterialsPanel from "@/components/materials-panel";
 import AiPanel, { type HumanStat } from "@/components/ai-panel";
 import { supabase } from "@/lib/supabase";
 import { getTemplate, sceneLabel, scoredOf, type Scene } from "@/lib/rubric";
@@ -19,6 +20,7 @@ type Session = {
   rubric_type: string; group_id: string; presenter_id: string | null;
   audience_level: string | null; audience_note: string | null; audience_size: number | null;
   scene: Scene; lesson_plan: string | null;
+  presenter_university: string | null; presenter_department: string | null;
 };
 
 // AI 평가 전용 화면 — 사람 평가와 독립적이에요.
@@ -35,7 +37,7 @@ export default function AiView() {
   useEffect(() => {
     supabase
       .from("sessions")
-      .select("session_no, mentor_name, major, session_date, rubric_type, group_id, presenter_id, audience_level, audience_note, audience_size, scene, lesson_plan")
+      .select("session_no, mentor_name, major, session_date, rubric_type, group_id, presenter_id, audience_level, audience_note, audience_size, scene, lesson_plan, presenter_university, presenter_department")
       .eq("id", sessionId)
       .single()
       .then(({ data }) => setSession(data ?? null));
@@ -103,6 +105,11 @@ export default function AiView() {
           AI 평가 · {session.mentor_name}
           {session.major && <span className="font-normal"> · {session.major}</span>}
         </h1>
+        {(session.presenter_university || session.presenter_department) && (
+          <p className="text-xs text-muted-foreground">
+            발표자 소속: {[session.presenter_university, session.presenter_department].filter(Boolean).join(" · ")}
+          </p>
+        )}
       </div>
 
 
@@ -195,7 +202,10 @@ export default function AiView() {
         )}
       </div>
 
+      <MaterialsPanel sessionId={sessionId} onChange={() => setReloadKey((k) => k + 1)} />
+
       <AiPanel
+        key={reloadKey}
         sessionId={sessionId}
         template={template}
         presenter={session.mentor_name}

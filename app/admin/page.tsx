@@ -14,6 +14,10 @@ type G = {
   member_count: number; team_count: number; session_count: number; evaluation_count: number;
   deletion_requested_at: string | null; deletion_reason: string | null;
 };
+type DataRow = {
+  uni: string; dept: string; mentor_count: number; session_count: number;
+  transcript_count: number; material_count: number; ai_run_count: number; human_eval_count: number;
+};
 type Membership = {
   group_id: string; group_name: string; role: Role; status: "pending" | "active"; is_owner: boolean;
 };
@@ -32,7 +36,8 @@ export default function AdminPage() {
   const [groups, setGroups] = useState<G[] | null>(null);
   const [users, setUsers] = useState<U[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"groups" | "users">("groups");
+  const [tab, setTab] = useState<"groups" | "users" | "data">("groups");
+  const [dataRows, setDataRows] = useState<DataRow[] | null>(null);
   const [q, setQ] = useState("");
   const [groupFilter, setGroupFilter] = useState<string>(ALL);
   const [reloadKey, setReloadKey] = useState(0);
@@ -46,6 +51,7 @@ export default function AdminPage() {
       setGroups((data as G[]) ?? []);
     });
     supabase.rpc("admin_list_users").then(({ data }) => setUsers((data as U[]) ?? []));
+    supabase.rpc("admin_data_summary").then(({ data }) => setDataRows((data as DataRow[]) ?? []));
   }, [reloadKey]);
 
   async function run(action: PromiseLike<{ error: { message: string } | null }>, after?: () => void) {
@@ -105,11 +111,11 @@ export default function AdminPage() {
         </button>
       )}
 
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm">
-        {(["groups", "users"] as const).map((t) => (
+      <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1 text-sm">
+        {(["groups", "users", "data"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`rounded-md py-1.5 ${tab === t ? "bg-background font-medium shadow-sm" : "text-muted-foreground"}`}>
-            {t === "groups" ? `그룹 ${(groups ?? []).length}` : `가입자 ${allUsers.length}`}
+            {t === "groups" ? `그룹 ${(groups ?? []).length}` : t === "users" ? `가입자 ${allUsers.length}` : "데이터"}
           </button>
         ))}
       </div>
@@ -186,6 +192,28 @@ export default function AdminPage() {
           <p className="text-xs text-muted-foreground">
             수업·평가 수에는 운영진이 목록에서 삭제한 기록도 포함돼요. 기록은 DB에 보관돼요.
           </p>
+        </section>
+      )}
+
+      {/* ── 데이터 현황: 학교·학과별로 쌓인 수업·전사문·자료 ── */}
+      {tab === "data" && (
+        <section className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            발표자 소속(대학·학과)별로 쌓인 기록이에요. 학과별 기준·AI 멘토를 만들 때 어느 학과 데이터가 충분한지 보는 용도예요.
+          </p>
+          {dataRows === null && <p className="text-sm text-muted-foreground">불러오는 중...</p>}
+          {dataRows?.length === 0 && <p className="text-sm text-muted-foreground">아직 기록이 없어요.</p>}
+          {dataRows?.map((d) => (
+            <Card key={d.uni + d.dept}>
+              <CardHeader>
+                <CardTitle>{d.uni} · {d.dept}</CardTitle>
+                <CardDescription>
+                  멘토 {d.mentor_count} · 수업 {d.session_count} · 전사문 {d.transcript_count} · 발표 자료 {d.material_count} ·
+                  AI 채점 {d.ai_run_count} · 사람 평가 줄 {d.human_eval_count}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
         </section>
       )}
 

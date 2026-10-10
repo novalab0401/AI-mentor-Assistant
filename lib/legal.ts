@@ -1,7 +1,7 @@
 // 약관·처리방침 버전. 내용을 바꾸면 날짜를 올리세요.
 // 버전이 바뀌면 모든 회원에게 다음 로그인 때 동의 화면이 다시 떠요.
-export const TERMS_VERSION = "2026-10-10.3";
-export const PRIVACY_VERSION = "2026-10-10.3";
+export const TERMS_VERSION = "2026-10-10.4";
+export const PRIVACY_VERSION = "2026-10-10.4";
 
 export type ConsentChoice = {
   age: boolean;      // [필수] 만 14세 이상
