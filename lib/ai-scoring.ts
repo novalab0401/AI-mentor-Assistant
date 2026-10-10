@@ -4,7 +4,7 @@
 import type { ScoredItem, Template } from "./rubric";
 
 // 프롬프트를 고치면 버전을 올리세요. 결과마다 어떤 버전으로 채점했는지 남아서 비교할 수 있어요.
-export const PROMPT_VERSION = "v14-2026-10-10"; // v14: 발표 자료(PDF 화면·PPTX 글자) 반영 // v11: 평가 장면, 수업 계획 대비 실행, 활동은 상황에 맞게
+export const PROMPT_VERSION = "v15-2026-10-10"; // v14: 발표 자료(PDF 화면·PPTX 글자) 반영 // v11: 평가 장면, 수업 계획 대비 실행, 활동은 상황에 맞게
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전문가가 만든 평가 기준(루브릭)에 따라 수업 전사문을 채점한다.
@@ -15,7 +15,7 @@ export const SYSTEM_PROMPT = `너는 Nova Lab의 수업 평가 보조 AI다. 전
 3. 전사문만으로 판단할 수 없는 항목(예: 시선·표정·제스처 같은 비언어 행동, 화면·판서처럼 말로 드러나지 않는 것)은 score를 "NA"로 하고, rationale에 판단할 수 없는 이유를 쓴다. 추측해서 점수를 주지 않는다. 이때 evidence는 비워도 된다.
 4. 사람의 심리·성격·의도를 추측하지 않는다. 관찰 가능한 발화와 진행만 근거로 삼는다.
 5. 질문 개수 같은 양보다 학습 목표와의 정합성, 학생 답에 이어지는 후속 질문, 대상 수준에의 적합성 같은 질을 본다.
-6. rationale은 어떤 기준 문장에 왜 해당하는지 2~3문장으로 쓴다.
+6. rationale은 어떤 기준 문장에 왜 해당하는지 2~3문장으로 쓴다. evidence는 항목마다 1~3개만 쓴다. 발표 자료 내용을 길게 옮겨 적지 않는다.
 7. next_action은 다음 수업에서 바로 해 볼 수 있는 구체적인 행동 한 가지로 쓴다. 예: "3번 슬라이드 설명 뒤에 '방금 내용을 친구에게 한 문장으로 설명해 볼래?'라고 묻는다."
 8. strengths와 improvements는 수업 전체에 대한 핵심 2~3개씩, 근거가 되는 장면을 함께 쓴다.
 9. 모든 글은 한국어로 쓴다.

@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 20000, // 항목 11개 × 근거·이유·다음 행동 + 종합. 학과 자료·앵커가 늘며 8000으로는 끊겼어요
+      max_tokens: 32000, // 항목 11개 × 근거·이유·다음 행동 + 종합. 발표 자료까지 들어가면 20000으로도 끊겼어요
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -118,7 +118,12 @@ export async function POST(request: Request) {
     return fail(502, `Claude API 오류 (${res.status}): ${detail.slice(0, 300)}`);
   }
   const msg = await res.json();
-  if (msg.stop_reason === "max_tokens") return fail(502, "AI 답변이 너무 길어 중간에 끊겼어요. 개발자에게 알려 주세요(답변 길이 한도 초과).");
+  if (msg.stop_reason === "max_tokens") {
+    // 원인을 알 수 있게 길이와 끝부분을 함께 보여 줘요 (같은 말 반복인지, 그냥 긴 건지)
+    const t = (msg.content as { type: string; text?: string }[]).find((b) => b.type === "text")?.text ?? "";
+    console.error("[ai-score] max_tokens", msg.usage, t.slice(-1500));
+    return fail(502, `AI 답변이 너무 길어 끊겼어요. (출력 ${msg.usage?.output_tokens ?? "?"}토큰, 입력 ${msg.usage?.input_tokens ?? "?"}토큰) 끝부분: …${t.slice(-200)}`);
+  }
   if (msg.stop_reason === "refusal") return fail(502, "AI가 이 요청에 답하지 않았어요.");
 
   let out: AiOutput;
