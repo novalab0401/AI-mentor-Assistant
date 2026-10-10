@@ -257,7 +257,9 @@ export default function SessionDetail() {
       {/* ── AI 채점 (이 화면은 관리하는 사람만 들어와요) ── */}
       <AiPanel
         sessionId={sessionId}
-        items={scoredItems}
+        template={template}
+        presenter={session.mentor_name}
+        topic={session.major}
         human={Object.fromEntries(
           scoredItems.map((i): [string, HumanStat] => {
             const st = stats(i.id);

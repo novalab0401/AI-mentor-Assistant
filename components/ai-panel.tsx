@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
-import type { ScoredItem } from "@/lib/rubric";
+import { scoredOf, type ScoredItem, type Template } from "@/lib/rubric";
+import { PROMPT_VERSION, buildManualPrompt, parseAiOutput, verifyQuote } from "@/lib/ai-scoring";
 
 type Transcript = { id: number; content: string; source: string; created_at: string };
 type Run = {
@@ -22,12 +23,17 @@ export type HumanStat = { avg: number | null; n: number };
 
 // 결과 화면의 AI 채점 영역 (운영진·팀장만 보여요)
 export default function AiPanel({
-  sessionId, items, human,
+  sessionId, template, presenter, topic, human,
 }: {
   sessionId: string;
-  items: ScoredItem[];
+  template: Template;
+  presenter: string;
+  topic: string | null;
   human: Record<string, HumanStat>;
 }) {
+  const items: ScoredItem[] = scoredOf(template.items);
+  const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
+  const [manual, setManual] = useState<{ answer: string; copied: boolean } | null>(null);
   const [transcript, setTranscript] = useState<Transcript | null | undefined>(undefined);
   const [draft, setDraft] = useState<string | null>(null); // 전사문 편집 중
   const [runs, setRuns] = useState<Run[]>([]);
@@ -63,6 +69,11 @@ export default function AiPanel({
   }, [runId]);
 
   useEffect(() => {
+    fetch("/api/ai-score").then((r) => r.json()).then((b) => setApiAvailable(!!b.available))
+      .catch(() => setApiAvailable(false));
+  }, []);
+
+  useEffect(() => {
     if (!running) return;
     const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
@@ -94,6 +105,58 @@ export default function AiPanel({
     setRunning(false);
     if (!res.ok) return alert(body.error ?? "AI 채점 실패");
     setRunId(body.runId);
+    setReloadKey((k) => k + 1);
+  }
+
+  // 수동 모드 ①: claude.ai에 붙여 넣을 요청문 복사
+  async function copyManualPrompt() {
+    if (!transcript) return;
+    await navigator.clipboard.writeText(
+      buildManualPrompt({ template, presenter, topic, transcript: transcript.content })
+    );
+    setManual({ answer: manual?.answer ?? "", copied: true });
+  }
+
+  // 수동 모드 ②: claude.ai의 답을 검사해서 API 채점과 똑같이 저장
+  async function saveManualAnswer() {
+    if (!transcript || !manual) return;
+    let out;
+    try {
+      out = parseAiOutput(manual.answer, items.map((i) => i.id));
+    } catch (e) {
+      return alert("답변을 읽지 못했어요: " + (e as Error).message);
+    }
+    setBusy(true);
+    const { data: saved, error } = await supabase
+      .from("ai_runs")
+      .insert({
+        session_id: sessionId,
+        transcript_id: transcript.id,
+        rubric_type: template.id,
+        model: "claude.ai (수동)",
+        prompt_version: PROMPT_VERSION + "-manual",
+        summary: { strengths: out.strengths, improvements: out.improvements },
+      })
+      .select("id")
+      .single();
+    if (error || !saved) {
+      setBusy(false);
+      return alert("저장 실패: " + (error?.message ?? ""));
+    }
+    const { error: scoreErr } = await supabase.from("ai_scores").insert(
+      out.items.map((it) => ({
+        run_id: saved.id,
+        item_id: it.item_id,
+        score: it.score === "NA" ? null : Number(it.score),
+        evidence: it.evidence.map((q) => ({ quote: q, verified: verifyQuote(q, transcript.content) })),
+        rationale: it.rationale,
+        next_action: it.next_action,
+      }))
+    );
+    setBusy(false);
+    if (scoreErr) return alert("점수 저장 실패: " + scoreErr.message);
+    setManual(null);
+    setRunId(saved.id);
     setReloadKey((k) => k + 1);
   }
 
@@ -155,9 +218,38 @@ export default function AiPanel({
         {/* ── 2. 실행 ── */}
         <div className="space-y-2">
           <p className="font-medium">2. AI 채점</p>
-          <Button className="w-full" disabled={!transcript || running || draft !== null} onClick={runAi}>
-            {running ? `채점 중... ${elapsed}초 (1~2분 걸려요)` : runs.length > 0 ? "다시 채점하기" : "AI 채점 실행"}
-          </Button>
+          {apiAvailable && (
+            <Button className="w-full" disabled={!transcript || running || draft !== null} onClick={runAi}>
+              {running ? `채점 중... ${elapsed}초 (1~2분 걸려요)` : runs.length > 0 ? "다시 채점하기" : "AI 채점 실행"}
+            </Button>
+          )}
+
+          {/* 수동 모드: API 키가 없을 때 claude.ai로 */}
+          {apiAvailable === false && (
+            <div className="space-y-2 rounded-md border border-dashed p-2">
+              <p className="text-xs text-muted-foreground">
+                API 키가 아직 없어서 <b>수동 모드</b>로 채점해요. 요청문을 claude.ai에 붙여 넣고, Claude의 답을 아래에 붙여 넣으세요.
+                결과는 자동 채점과 똑같이 저장·비교돼요.
+              </p>
+              <Button size="sm" variant="outline" className="w-full" disabled={!transcript || draft !== null}
+                onClick={copyManualPrompt}>
+                {manual?.copied ? "① 복사됨! claude.ai에 붙여 넣으세요" : "① 채점 요청문 복사"}
+              </Button>
+              {manual?.copied && (
+                <>
+                  <Textarea className="min-h-32 font-mono text-xs" placeholder="② Claude의 답(JSON)을 여기에 붙여 넣기"
+                    value={manual.answer} onChange={(e) => setManual({ ...manual, answer: e.target.value })} />
+                  <Button size="sm" className="w-full" disabled={busy || !manual.answer.trim()} onClick={saveManualAnswer}>
+                    ③ 검사하고 저장
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    ⚠ 실제 멘토의 전사문을 claude.ai에 넣기 전에 claude.ai 설정에서 대화를 모델 개선에 쓰는 옵션을 꺼 두세요.
+                    테스트용 전사문은 상관없어요.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
           {runs.length > 1 && (
             <select className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
               value={runId ?? ""} onChange={(e) => setRunId(Number(e.target.value))}>

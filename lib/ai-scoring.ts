@@ -97,3 +97,55 @@ export function verifyQuote(quote: string, transcript: string) {
   if (parts.length === 0) return false;
   return parts.every((p) => hay.includes(p));
 }
+
+// ── 수동 모드: API 없이 claude.ai에 붙여 넣어 채점할 때 ──
+
+// claude.ai에 붙여 넣을 요청문 (시스템 지시 + 평가지 + 전사문 + 답변 형식)
+export function buildManualPrompt(opts: Parameters<typeof buildUserPrompt>[0]) {
+  const ids = opts.template.items.filter((i) => i.kind === "score").map((i) => i.id);
+  return `${SYSTEM_PROMPT}
+
+${buildUserPrompt(opts)}
+
+## 답변 형식 (아주 중요)
+다른 말 없이 아래 모양의 JSON 하나만 출력해. 코드 블록 표시도 하지 마.
+- items에는 다음 item_id를 모두 한 번씩 넣어: ${ids.join(", ")}
+- score는 "1", "2", "3", "4", "NA" 중 하나 (문자열)
+
+{
+  "items": [
+    { "item_id": "${ids[0] ?? "structure"}", "score": "3", "evidence": ["전사문에서 그대로 옮긴 발화"], "rationale": "이유", "next_action": "다음에 할 행동" }
+  ],
+  "strengths": ["잘한 점"],
+  "improvements": ["개선할 점"]
+}`;
+}
+
+// claude.ai에서 받은 답을 읽기 (앞뒤 설명이나 코드 블록이 섞여 있어도 JSON 부분만 꺼내요)
+export function parseAiOutput(text: string, itemIds: string[]): AiOutput {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error("JSON을 찾지 못했어요. Claude의 답 전체를 복사해 주세요.");
+  const raw = JSON.parse(text.slice(start, end + 1));
+
+  if (!Array.isArray(raw.items)) throw new Error('"items" 목록이 없어요.');
+  const items = (raw.items as Record<string, unknown>[]).map((it) => {
+    const score = String(it.score ?? "").trim().toUpperCase();
+    if (!["1", "2", "3", "4", "NA"].includes(score)) throw new Error(`점수 형식이 이상해요: ${it.item_id} = ${it.score}`);
+    return {
+      item_id: String(it.item_id),
+      score,
+      evidence: Array.isArray(it.evidence) ? it.evidence.map(String) : [],
+      rationale: String(it.rationale ?? ""),
+      next_action: String(it.next_action ?? ""),
+    };
+  });
+  const missing = itemIds.filter((id) => !items.some((i) => i.item_id === id));
+  if (missing.length > 0) throw new Error(`빠진 항목이 있어요: ${missing.join(", ")}`);
+
+  return {
+    items: items.filter((i) => itemIds.includes(i.item_id)),
+    strengths: Array.isArray(raw.strengths) ? raw.strengths.map(String) : [],
+    improvements: Array.isArray(raw.improvements) ? raw.improvements.map(String) : [],
+  };
+}

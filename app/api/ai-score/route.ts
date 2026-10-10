@@ -13,6 +13,11 @@ export const maxDuration = 300; // 긴 전사문은 채점에 1~2분 걸릴 수 
 
 const fail = (status: number, message: string) => Response.json({ error: message }, { status });
 
+// 화면이 "API로 자동 채점"을 보여 줄지 정할 때 써요 (키 값은 절대 돌려주지 않아요)
+export async function GET() {
+  return Response.json({ available: !!process.env.ANTHROPIC_API_KEY });
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return fail(500, "서버에 ANTHROPIC_API_KEY가 설정되지 않았어요. .env.local을 확인해 주세요.");
