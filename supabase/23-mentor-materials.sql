@@ -73,10 +73,10 @@ begin
     raise exception 'Nova Lab 관리자만 볼 수 있어요.';
   end if;
   return query
-    select coalesce(x.uni, '(미입력)'), coalesce(x.dept, '(미입력)'),
+    select coalesce(x.p_uni, '(미입력)'), coalesce(x.p_dept, '(미입력)'),
            count(distinct x.who), count(*), sum(x.t)::bigint, sum(x.m)::bigint, sum(x.r)::bigint, sum(x.e)::bigint
     from (
-      select s.presenter_university as uni, s.presenter_department as dept,
+      select s.presenter_university as p_uni, s.presenter_department as p_dept,
              coalesce(s.presenter_id::text, s.mentor_name) as who,
              (select count(*) from transcripts t where t.session_id = s.id) as t,
              (select count(*) from materials m where m.session_id = s.id) as m,
