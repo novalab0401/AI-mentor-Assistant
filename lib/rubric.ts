@@ -155,9 +155,53 @@ const common = (id: keyof typeof COMMON, group: string, allowNA = false): Scored
   ...COMMON[id], kind: "score", group, allowNA,
 });
 
-// ── 특화 항목 (초안) ──
+// ── 특화 항목 ──
+// 전공 소개 특화 4개(학생 파악·실천 안내·균형·질문 응답)는 2026-10-10 김재호 검토로 채택(양식 A).
+// 정확성·PPT와 이공계 항목은 아직 초안이에요.
+const studentFit: ScoredItem = {
+  id: "student_fit", kind: "score", group: "전공 소개", title: "학생 파악과 맞춤",
+  question: "학생의 관심·학년·아는 정도를 확인하고 그에 맞춰 설명을 조절했는가?",
+  levels: [
+    "학생에 대해 묻지 않고 준비한 내용만 전달",
+    "처음에 한 번 물었지만 답을 설명에 반영하지 않음",
+    "학생 관심·수준을 확인하고 예시나 강조점을 그에 맞춤",
+    "수업 중간에도 반응을 확인하며 학생별 관심에 연결해 설명을 바꿈",
+  ],
+  allowNA: true, // 학생 역할이 없는 혼자 연습이면 판단 불가
+};
+const careerAction: ScoredItem = {
+  id: "career_action", kind: "score", group: "전공 소개", title: "진로 연결과 실천 안내",
+  question: "학생이 \"지금 무엇을 하면 되는지\" 알 수 있게 구체적으로 안내했는가?",
+  levels: [
+    "진로나 준비 방법을 말하지 않음",
+    "\"열심히 하면 돼요\" 같은 일반론만 제시",
+    "고등학교 과목·활동·더 알아볼 곳 중 구체적인 것을 안내",
+    "학생 관심에 맞춘 다음 행동을 구체적으로 제시하고, 스스로 판단할 기준까지 알려줌",
+  ],
+};
+const balance: ScoredItem = {
+  id: "balance", kind: "score", group: "전공 소개", title: "균형과 현실성",
+  question: "전공의 좋은 점과 힘든 점을 균형 있게 전달하고 과장·확언을 피했는가?",
+  levels: [
+    "좋은 점만 강조하거나 \"무조건 취업\" 같은 확언·비하 발언",
+    "힘든 점을 언급하지만 가볍게 넘김",
+    "좋은 점과 힘든 점을 구체적 경험과 함께 제시",
+    "균형 + 이 전공이 맞는 사람과 안 맞는 사람의 특징까지 알려줘 스스로 판단하게 함",
+  ],
+};
+const studentQuestions: ScoredItem = {
+  id: "student_questions", kind: "score", group: "전공 소개", title: "학생 질문 응답",
+  question: "학생이 질문할 기회를 만들고, 받은 질문에 정확하고 성의 있게 답했는가? (멘토가 묻는 질문은 '질문의 질'에서 봐요)",
+  levels: [
+    "질문 기회가 없거나 \"질문 있어요? 없으면 마칠게요\"로 끝냄",
+    "질문을 받지만 짧거나 동떨어진 답",
+    "질문을 충분히 기다려 받고, 질문의 의도에 맞는 구체적인 답을 함",
+    "답 후 이해했는지 확인하고, 모르는 것은 모른다고 하며 확인 방법을 안내",
+  ],
+  allowNA: true, // 학생 역할이 없는 혼자 연습이면 판단 불가
+};
 const majorAccuracy: ScoredItem = {
-  id: "major_accuracy", kind: "score", group: "전공 소개 (초안)", title: "전공·진로 정보의 정확성",
+  id: "major_accuracy", kind: "score", group: "전공 소개", title: "전공·진로 정보의 정확성",
   question: "전공에서 배우는 내용, 진로, 입시 관련 정보가 정확하고 근거가 있는가?",
   levels: [
     "사실과 다르거나 확인되지 않은 정보를 단정적으로 전달",
@@ -167,7 +211,7 @@ const majorAccuracy: ScoredItem = {
   ],
 };
 const material: ScoredItem = {
-  id: "material", kind: "score", group: "전공 소개 (초안)", title: "발표 자료(PPT)의 적절성",
+  id: "material", kind: "score", group: "전공 소개", title: "발표 자료(PPT)의 적절성",
   question: "자료가 핵심 메시지를 대상 눈높이에서 이해하기 쉽게 전달하는가?",
   levels: [
     "글자 과다·가독성 낮음, 말과 자료가 따로 놂",
@@ -223,7 +267,7 @@ export const templates: Template[] = [
     items: [
       common("structure", 실행), common("explanation", 실행), common("question", 실행),
       common("nonverbal", 실행, true), common("time", 실행),
-      majorAccuracy, material,
+      majorAccuracy, material, studentFit, careerAction, balance, studentQuestions,
       text("comment_material", "발표 자료(PPT)에 대한 의견",
         "예: 3번 슬라이드 글자가 너무 많아요. 커리큘럼 표는 그림으로 바꾸면 좋겠어요."),
       text("comment_content", "수업 내용에 대한 의견",
