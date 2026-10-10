@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BackLink from "@/components/back-link";
 import PasswordInput from "@/components/password-input";
+import ConsentChecklist from "@/components/consent-checklist";
+import { PRIVACY_VERSION, TERMS_VERSION, emptyConsent, requiredOk } from "@/lib/legal";
 import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
@@ -15,13 +17,15 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
+  const [consent, setConsent] = useState(emptyConsent);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const mismatch = password2 !== "" && password !== password2;
   const canSubmit =
-    name.trim() !== "" && email.trim() !== "" && password.length >= 6 && password === password2 && !busy;
+    name.trim() !== "" && email.trim() !== "" && password.length >= 6 && password === password2 &&
+    requiredOk(consent) && !busy;
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +35,15 @@ export default function SignupPage() {
       email: email.trim(),
       password,
       // 이름은 가입할 때 같이 보내고, DB가 프로필을 자동으로 만들어요
-      options: { data: { display_name: name.trim() } },
+      // 동의 내용도 같이 보내고, DB가 동의 기록을 자동으로 남겨요
+      options: {
+        data: {
+          display_name: name.trim(),
+          terms_version: TERMS_VERSION,
+          privacy_version: PRIVACY_VERSION,
+          research_opt_in: consent.research,
+        },
+      },
     });
     setBusy(false);
 
@@ -77,6 +89,7 @@ export default function SignupPage() {
           {password2 !== "" && !mismatch && password.length >= 6 && (
             <p className="text-xs text-primary">비밀번호가 일치해요.</p>
           )}
+          <ConsentChecklist value={consent} onChange={setConsent} />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={!canSubmit}>
             {busy ? "가입 중..." : "가입하기"}

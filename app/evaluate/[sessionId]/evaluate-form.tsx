@@ -126,6 +126,11 @@ export default function EvaluateForm() {
 
       <RubricForm items={items} value={answers} onChange={setAnswers} />
 
+      <p className="text-xs text-muted-foreground">
+        제출한 이름과 평가 내용은 이 그룹의 운영진과 평가받는 사람(이름 제외)에게 보이며,{" "}
+        <Link href="/privacy" target="_blank" className="underline">개인정보 처리방침</Link>에 따라 처리돼요.
+      </p>
+
       {/* 화면 아래에 붙어 있는 제출 바: 길게 스크롤해도 진행 상황이 보여요 */}
       <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 p-3 backdrop-blur">
         <div className="mx-auto flex max-w-md items-center gap-3">

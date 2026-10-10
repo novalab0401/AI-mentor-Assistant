@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { useOperator } from "@/lib/use-operator";
+import { useConsentGuard } from "@/lib/use-consent";
 import { roleLabels, type Role } from "@/lib/roles";
 import { canCreateGroup, usePermissions } from "@/lib/use-permissions";
 import { getTemplate } from "@/lib/rubric";
@@ -27,6 +28,7 @@ export default function Home() {
   const [name, setName] = useState("");
   const [feedback, setFeedback] = useState<MyFeedback[]>([]);
   const perm = usePermissions(!!user);
+  useConsentGuard(user);
 
   useEffect(() => {
     if (!user) return;
